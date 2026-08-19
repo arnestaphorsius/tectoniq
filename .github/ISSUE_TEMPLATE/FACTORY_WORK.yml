@@ -1,0 +1,51 @@
+name: '🏭 Factory Work'
+description: A unit of work for the factory to spec, build, test and review.
+title: '🏭 [WORK] - <title>'
+labels: ['stage:spec']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in what you know. The less remains to be discovered, the faster the factory can deliver. If 
+        you don't know something, leave it blank and the factory will ask questions.
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What can a person do after this ships that they could not do before?
+      placeholder: A player can type digits into empty cells and see illegal ones highlighted.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: |
+        List anything that is explicitly not part of this work. This helps the factory avoid wasting time on things
+        that are not needed.
+      placeholder: |
+        No persistence: store everything in memory.
+    validations:
+      required: false
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Anything that narrows the approach — a library to pick or avoid, a decision already made.
+    validations:
+      required: false
+
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: Rough acceptance criteria. The spec stage turns these into numbered, testable ones.
+      placeholder: |
+        - Clicking a cell selects it
+        - Typing 1-5 fills the selected cell; a given never changes
+        - Illegal digits show in red as soon as they're entered
+    validations:
+      required: true
