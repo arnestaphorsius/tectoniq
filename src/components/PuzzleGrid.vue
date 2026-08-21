@@ -157,7 +157,12 @@ watch(selected, (cell) => {
       :tabindex="cell.isGiven ? undefined : cell.isSelected ? 0 : -1"
       @click="select(cell.cell)"
     >
-      {{ cell.value ?? '' }}
+      <!--
+        The digit is an element rather than bare text so that an empty cell has no
+        child nodes at all. Bare text next to the marker leaves a whitespace node
+        behind, which makes every cell match `:not(:empty)`.
+      -->
+      <span v-if="cell.value !== null" class="digit">{{ cell.value }}</span>
       <span
         v-if="cell.isOffending"
         class="marker"
