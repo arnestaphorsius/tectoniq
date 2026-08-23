@@ -105,13 +105,17 @@ describe('digit entry', () => {
 })
 
 describe('givens', () => {
-  it('a given cannot be selected, so a keystroke cannot alter it', async () => {
+  it('a selected given ignores every keystroke that would alter it', async () => {
     const wrapper = mountApp()
     const before = digits(wrapper)
 
     await pressOn(wrapper, 4, '1')
+    expect(cell(wrapper, 4).attributes('aria-selected')).toBe('true')
 
-    expect(cell(wrapper, 4).attributes('aria-selected')).toBeUndefined()
+    for (const key of ['2', '5', 'Backspace', 'Delete']) {
+      await cell(wrapper, 4).trigger('keydown', { key })
+    }
+
     expect(cell(wrapper, 4).text()).toBe('3')
     expect(digits(wrapper)).toEqual(before)
   })

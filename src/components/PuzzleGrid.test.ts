@@ -9,23 +9,22 @@ import PuzzleGrid from './PuzzleGrid.vue'
 enableAutoUnmount(afterEach)
 
 /**
- * A puzzle whose row 1 and column 1 each hold exactly one non-given cell — cell 4 —
- * so arrow movement from there has nowhere legal to land. `SAMPLE_PUZZLE` has no
- * such line, which is why AC-26 needs its own fixture.
+ * A single column, so left and right have nowhere to go. `SAMPLE_PUZZLE` has no
+ * one-cell line, which is why AC-26 needs its own fixture.
  */
 // prettier-ignore
-const BOXED_IN: Puzzle = {
-  width: 3,
+const ONE_WIDE: Puzzle = {
+  width: 1,
   height: 3,
   cages: [
-    0, 0, 1,
-    0, 1, 1,
-    2, 2, 2,
+    0,
+    0,
+    0,
   ],
   givens: [
-    null, 1,    null,
-    2,    null, 3,
-    null, 1,    null,
+    null,
+    null,
+    null,
   ],
 }
 
@@ -80,13 +79,13 @@ describe('selection', () => {
     expect(cell(wrapper, 0).attributes('aria-selected')).toBeUndefined()
   })
 
-  it('clicking a given is a no-op and keeps the selection', async () => {
+  it('clicking a given selects it', async () => {
     const wrapper = mountGrid()
     await cell(wrapper, 0).trigger('click')
     await cell(wrapper, 4).trigger('click')
 
-    expect(cell(wrapper, 4).attributes('aria-selected')).toBeUndefined()
-    expect(selectedCell(wrapper)).toBe(0)
+    expect(cell(wrapper, 4).attributes('aria-selected')).toBe('true')
+    expect(selectedCell(wrapper)).toBe(4)
   })
 
   it('Escape clears the selection', async () => {
@@ -113,14 +112,9 @@ describe('arrow keys', () => {
     { name: 'ArrowLeft moves from cell 1 to cell 0', from: 1, key: 'ArrowLeft', to: 0 },
     { name: 'ArrowDown moves from cell 13 to cell 17', from: 13, key: 'ArrowDown', to: 17 },
     { name: 'ArrowUp moves from cell 5 to cell 1', from: 5, key: 'ArrowUp', to: 1 },
-    { name: 'ArrowDown skips given cell 4, landing on cell 8', from: 0, key: 'ArrowDown', to: 8 },
-    { name: 'ArrowUp skips given cell 10, landing on cell 6', from: 14, key: 'ArrowUp', to: 6 },
-    {
-      name: 'ArrowDown skips two givens, from cell 3 to cell 15',
-      from: 3,
-      key: 'ArrowDown',
-      to: 15,
-    },
+    { name: 'ArrowDown lands on given cell 4, from cell 0', from: 0, key: 'ArrowDown', to: 4 },
+    { name: 'ArrowUp lands on given cell 10, from cell 14', from: 14, key: 'ArrowUp', to: 10 },
+    { name: 'ArrowDown moves off given cell 4 to cell 8', from: 4, key: 'ArrowDown', to: 8 },
     {
       name: 'ArrowRight wraps within the row, from cell 3 to cell 0',
       from: 3,
@@ -140,10 +134,10 @@ describe('arrow keys', () => {
       to: 17,
     },
     {
-      name: 'ArrowRight skips given cell 19 and wraps to cell 16',
-      from: 18,
-      key: 'ArrowRight',
-      to: 16,
+      name: 'ArrowLeft wraps onto given cell 19, from cell 16',
+      from: 16,
+      key: 'ArrowLeft',
+      to: 19,
     },
   ]
 
@@ -164,12 +158,24 @@ describe('arrow keys', () => {
     }
   })
 
-  it('the only non-given cell in its line keeps the selection', async () => {
-    const wrapper = mountGrid({ puzzle: BOXED_IN })
-    for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) {
-      await pressOn(wrapper, 4, key)
-      expect(selectedCell(wrapper)).toBe(4)
+  it('a one-cell line keeps the selection', async () => {
+    const wrapper = mountGrid({ puzzle: ONE_WIDE })
+    for (const key of ['ArrowLeft', 'ArrowRight']) {
+      await pressOn(wrapper, 1, key)
+      expect(selectedCell(wrapper)).toBe(1)
     }
+  })
+})
+
+describe('givens', () => {
+  it('a selected given refuses a digit and a clear', async () => {
+    const wrapper = mountGrid()
+    await pressOn(wrapper, 4, '1')
+    await cell(wrapper, 4).trigger('keydown', { key: 'Backspace' })
+    await cell(wrapper, 4).trigger('keydown', { key: 'Delete' })
+
+    expect(selectedCell(wrapper)).toBe(4)
+    expect(wrapper.emitted('entry')).toBeUndefined()
   })
 })
 
@@ -196,7 +202,7 @@ describe('violation marker', () => {
     expect(cell(wrapper, 0).text()).toBe('3')
   })
 
-  it('a given named by a violation shows no marker', () => {
+  it('a given named by a violation shows the marker too', () => {
     const wrapper = mountGrid({ board, violations })
 
     expect(violations).toContainEqual({
@@ -205,6 +211,14 @@ describe('violation marker', () => {
       cells: [0, 4],
     })
     expect(cell(wrapper, 0).find('[data-testid="violation-marker"]').exists()).toBe(true)
-    expect(cell(wrapper, 4).find('[data-testid="violation-marker"]').exists()).toBe(false)
+    expect(cell(wrapper, 4).find('[data-testid="violation-marker"]').exists()).toBe(true)
+  })
+
+  it('a cell no violation names shows no marker', () => {
+    const wrapper = mountGrid({ board, violations })
+
+    // Cell 7 is a given the sample leaves legal, so nothing marks it.
+    expect(cell(wrapper, 7).find('[data-testid="violation-marker"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="violation-marker"]')).toHaveLength(2)
   })
 })

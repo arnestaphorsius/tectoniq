@@ -1,41 +1,34 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { SAMPLE_PUZZLE } from './samplePuzzle'
-import { isSelectable, nextSelection, withEntry } from './selection'
+import { isWritable, nextSelection, withEntry } from './selection'
 import { emptyBoard, type Puzzle } from './types'
 
-/**
- * A puzzle whose row 1 and column 1 each hold exactly one non-given cell — cell 4.
- * Traversal from there has nowhere legal to land, which is the termination case.
- *
- *   . x .        givens marked x, cell 4 is the only free cell
- *   x 4 x        in both its row and its column
- *   . x .
- */
+/** A single column, so left and right have nowhere to go. */
 // prettier-ignore
-const BOXED_IN: Puzzle = {
-  width: 3,
+const ONE_WIDE: Puzzle = {
+  width: 1,
   height: 3,
   cages: [
-    0, 0, 1,
-    0, 1, 1,
-    2, 2, 2,
+    0,
+    0,
+    0,
   ],
   givens: [
-    null, 1,    null,
-    2,    null, 3,
-    null, 1,    null,
+    null,
+    null,
+    null,
   ],
 }
 
-describe('isSelectable', () => {
+describe('isWritable', () => {
   it('accepts an empty cell and rejects a given', () => {
-    expect(isSelectable(SAMPLE_PUZZLE, 0)).toBe(true)
-    expect(isSelectable(SAMPLE_PUZZLE, 4)).toBe(false)
+    expect(isWritable(SAMPLE_PUZZLE, 0)).toBe(true)
+    expect(isWritable(SAMPLE_PUZZLE, 4)).toBe(false)
   })
 
   it('rejects an index outside the grid', () => {
-    expect(isSelectable(SAMPLE_PUZZLE, -1)).toBe(false)
-    expect(isSelectable(SAMPLE_PUZZLE, 20)).toBe(false)
+    expect(isWritable(SAMPLE_PUZZLE, -1)).toBe(false)
+    expect(isWritable(SAMPLE_PUZZLE, 20)).toBe(false)
   })
 })
 
@@ -47,16 +40,11 @@ describe('nextSelection', () => {
     expect(nextSelection(SAMPLE_PUZZLE, 5, 'up')).toBe(1)
   })
 
-  it('skips a given in the way', () => {
+  it('lands on a given rather than stepping over it', () => {
     // Column 0 is 0, 4, 8, 12, 16 with 4 and 12 given.
-    expect(nextSelection(SAMPLE_PUZZLE, 0, 'down')).toBe(8)
+    expect(nextSelection(SAMPLE_PUZZLE, 0, 'down')).toBe(4)
     // Column 2 is 2, 6, 10, 14, 18 with 10 given.
-    expect(nextSelection(SAMPLE_PUZZLE, 14, 'up')).toBe(6)
-  })
-
-  it('skips a run of givens rather than only one', () => {
-    // Column 3 is 3, 7, 11, 15, 19 with 7, 11 and 19 given.
-    expect(nextSelection(SAMPLE_PUZZLE, 3, 'down')).toBe(15)
+    expect(nextSelection(SAMPLE_PUZZLE, 14, 'up')).toBe(10)
   })
 
   it('wraps within the row, never onto another row', () => {
@@ -69,16 +57,14 @@ describe('nextSelection', () => {
     expect(nextSelection(SAMPLE_PUZZLE, 17, 'down')).toBe(1)
   })
 
-  it('skips a given at the end of a line and then wraps', () => {
+  it('wraps onto a given like any other cell', () => {
     // Row 4 is 16, 17, 18, 19 with 19 given.
-    expect(nextSelection(SAMPLE_PUZZLE, 18, 'right')).toBe(16)
+    expect(nextSelection(SAMPLE_PUZZLE, 16, 'left')).toBe(19)
   })
 
-  it('stays put when the cell is the only free one in its line', () => {
-    expect(nextSelection(BOXED_IN, 4, 'left')).toBe(4)
-    expect(nextSelection(BOXED_IN, 4, 'right')).toBe(4)
-    expect(nextSelection(BOXED_IN, 4, 'up')).toBe(4)
-    expect(nextSelection(BOXED_IN, 4, 'down')).toBe(4)
+  it('stays put when the line is one cell long', () => {
+    expect(nextSelection(ONE_WIDE, 1, 'left')).toBe(1)
+    expect(nextSelection(ONE_WIDE, 1, 'right')).toBe(1)
   })
 })
 

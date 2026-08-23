@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { cageAt, coordOf, indexOf } from '@/domain/grid'
-import { isSelectable, nextSelection, type Direction } from '@/domain/selection'
+import { isWritable, nextSelection, type Direction } from '@/domain/selection'
 import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/types'
 import { valueAt, type Violation } from '@/domain/validate'
 
@@ -74,18 +74,19 @@ const cells = computed(() =>
       cell,
       value: valueAt(props.puzzle, props.board, cell),
       isGiven,
-      // A given is never marked: the player cannot act on it, and the ticket asks
-      // for the marker only where a digit was entered.
-      isOffending: offendingCells.value.has(cell) && !isGiven,
+      // Givens are marked too. The marker says "this digit is part of a broken
+      // rule", not "fix this cell" — seeing both ends of a conflict is what tells
+      // the player what their own digit collided with.
+      isOffending: offendingCells.value.has(cell),
       isSelected: selected.value === cell,
       edges: cageEdges(cell),
     }
   }),
 )
 
-/** Clicking a given is a no-op — the previous selection survives it. */
+/** Any cell can be selected, givens included — arrow keys have to cross them. */
 function select(cell: number) {
-  if (isSelectable(props.puzzle, cell)) selected.value = cell
+  selected.value = cell
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -104,6 +105,10 @@ function onKeydown(event: KeyboardEvent) {
     selected.value = null
     return
   }
+
+  // A given holds the selection but never takes a digit, so every write below is
+  // refused here rather than at the board — the ticket's "cannot alter a given".
+  if (!isWritable(props.puzzle, cell)) return
 
   if (event.key === 'Backspace' || event.key === 'Delete') {
     event.preventDefault()
@@ -154,7 +159,7 @@ watch(selected, (cell) => {
       :data-cell="cell.cell"
       role="gridcell"
       :aria-selected="cell.isSelected ? 'true' : undefined"
-      :tabindex="cell.isGiven ? undefined : cell.isSelected ? 0 : -1"
+      :tabindex="cell.isSelected ? 0 : -1"
       @click="select(cell.cell)"
     >
       <!--
