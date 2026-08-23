@@ -90,9 +90,14 @@ describe('selection', () => {
 
   it('Escape clears the selection', async () => {
     const wrapper = mountGrid()
-    await pressOn(wrapper, 0, 'Escape')
+    await cell(wrapper, 0).trigger('click')
+    expect(wrapper.element.contains(document.activeElement)).toBe(true)
+
+    await cell(wrapper, 0).trigger('keydown', { key: 'Escape' })
 
     expect(selectedCell(wrapper)).toBeNull()
+    // Selection is focus, so losing one has to lose the other.
+    expect(wrapper.element.contains(document.activeElement)).toBe(false)
   })
 })
 

@@ -133,9 +133,15 @@ function onDocumentClick(event: MouseEvent) {
 onMounted(() => document.addEventListener('click', onDocumentClick))
 onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
 
-// Selection is focus, so move the real focus with it.
+// Selection is focus, so move the real focus with it — including on the way out.
+// Only a cell of this grid is ever blurred: a click that lands on something else
+// focusable has already moved focus there, and stealing it back would be wrong.
 watch(selected, (cell) => {
-  if (cell === null) return
+  if (cell === null) {
+    const active = document.activeElement
+    if (active instanceof HTMLElement && root.value?.contains(active)) active.blur()
+    return
+  }
   root.value?.querySelector<HTMLElement>(`[data-cell="${cell}"]`)?.focus()
 })
 </script>
