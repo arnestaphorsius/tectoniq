@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { cageAt, coordOf, indexOf } from '@/domain/grid'
-import { isWritable, nextSelection, type Direction } from '@/domain/selection'
+import { isWritable, nextSelection, toggledEntry, type Direction } from '@/domain/selection'
 import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/types'
 import { valueAt, type Violation } from '@/domain/validate'
 
@@ -119,7 +119,7 @@ function onKeydown(event: KeyboardEvent) {
   const digit = Number(event.key)
   if (event.key.length === 1 && isDigit(digit)) {
     event.preventDefault()
-    emit('entry', cell, digit)
+    emit('entry', cell, toggledEntry(props.puzzle, props.board, cell, digit))
   }
 }
 

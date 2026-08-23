@@ -80,6 +80,19 @@ describe('digit entry', () => {
     expect(cell(wrapper, 0).text()).toBe('2')
   })
 
+  it('pressing the digit already in the cell clears it', async () => {
+    const wrapper = mountApp()
+    await pressOn(wrapper, 0, '2')
+    expect(cell(wrapper, 0).text()).toBe('2')
+
+    await cell(wrapper, 0).trigger('keydown', { key: '2' })
+    expect(cell(wrapper, 0).text()).toBe('')
+
+    // And a third press puts it back, rather than latching the cell empty.
+    await cell(wrapper, 0).trigger('keydown', { key: '2' })
+    expect(cell(wrapper, 0).text()).toBe('2')
+  })
+
   it('clears the cell on Backspace and on Delete', async () => {
     for (const key of ['Backspace', 'Delete']) {
       const wrapper = mountApp()

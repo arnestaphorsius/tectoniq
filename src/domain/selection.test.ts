@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { SAMPLE_PUZZLE } from './samplePuzzle'
-import { isWritable, nextSelection, withEntry } from './selection'
+import { isWritable, nextSelection, toggledEntry, withEntry } from './selection'
 import { emptyBoard, type Puzzle } from './types'
 
 /** A single column, so left and right have nowhere to go. */
@@ -65,6 +65,22 @@ describe('nextSelection', () => {
   it('stays put when the line is one cell long', () => {
     expect(nextSelection(ONE_WIDE, 1, 'left')).toBe(1)
     expect(nextSelection(ONE_WIDE, 1, 'right')).toBe(1)
+  })
+})
+
+describe('toggledEntry', () => {
+  const board = emptyBoard(SAMPLE_PUZZLE)
+
+  it('gives the digit for an empty cell', () => {
+    expect(toggledEntry(SAMPLE_PUZZLE, board, 0, 3)).toBe(3)
+  })
+
+  it('gives null when that digit is already there', () => {
+    expect(toggledEntry(SAMPLE_PUZZLE, withEntry(board, 0, 3), 0, 3)).toBeNull()
+  })
+
+  it('gives the new digit when a different one is there', () => {
+    expect(toggledEntry(SAMPLE_PUZZLE, withEntry(board, 0, 3), 0, 2)).toBe(2)
   })
 })
 

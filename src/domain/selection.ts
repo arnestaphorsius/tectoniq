@@ -1,5 +1,6 @@
 import { cellCount, coordOf, indexOf } from './grid'
 import type { Board, Digit, Puzzle } from './types'
+import { valueAt } from './validate'
 
 /** The four ways an arrow key can move the selection. */
 export type Direction = 'up' | 'down' | 'left' | 'right'
@@ -36,6 +37,20 @@ export function nextSelection(puzzle: Puzzle, from: number, direction: Direction
   return horizontal
     ? indexOf(puzzle, { row, col: position })
     : indexOf(puzzle, { row: position, col })
+}
+
+/**
+ * What pressing `digit` on `cell` should leave there — the digit, or nothing when
+ * that digit is already in the cell. Pressing a digit twice takes it back, which
+ * spares the player reaching for Backspace to undo a keystroke they just made.
+ */
+export function toggledEntry(
+  puzzle: Puzzle,
+  board: Board,
+  cell: number,
+  digit: Digit,
+): Digit | null {
+  return valueAt(puzzle, board, cell) === digit ? null : digit
 }
 
 /**
