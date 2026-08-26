@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
 import { SAMPLE_PUZZLE } from './domain/samplePuzzle'
-import { emptyBoard } from './domain/types'
+import { withEntry } from './domain/selection'
+import { emptyBoard, type Board, type Digit } from './domain/types'
 import { findViolations } from './domain/validate'
 
-// The skeleton renders a fixed puzzle read-only. Digit entry (the player) and
-// cage drawing (the editor) are the first two tickets through the factory.
-const board = emptyBoard(SAMPLE_PUZZLE)
-const violations = computed(() => findViolations(SAMPLE_PUZZLE, board))
+// The board is the app's state; the grid owns only which cell is selected. Cage
+// drawing (the editor) is a later ticket.
+const board = ref<Board>(emptyBoard(SAMPLE_PUZZLE))
+const violations = computed(() => findViolations(SAMPLE_PUZZLE, board.value))
+
+function onEntry(cell: number, digit: Digit | null) {
+  board.value = withEntry(board.value, cell, digit)
+}
 </script>
 
 <template>
@@ -18,7 +23,7 @@ const violations = computed(() => findViolations(SAMPLE_PUZZLE, board))
       <p class="tagline">Help for Tectonic &amp; Suguru puzzles</p>
     </header>
 
-    <PuzzleGrid :puzzle="SAMPLE_PUZZLE" :board="board" :violations="violations" />
+    <PuzzleGrid :puzzle="SAMPLE_PUZZLE" :board="board" :violations="violations" @entry="onEntry" />
 
     <p data-testid="violation-count">
       {{ violations.length }} rule {{ violations.length === 1 ? 'violation' : 'violations' }}

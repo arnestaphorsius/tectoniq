@@ -24,6 +24,8 @@
     "@types/node": "^26.2.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "catalog:",
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.11.6",
     "typescript": "^5.9.3",
     "vite": "catalog:",
     "vite-plus": "catalog:",
