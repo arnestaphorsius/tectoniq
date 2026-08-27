@@ -17,19 +17,19 @@
     "verify": "vp check && pnpm typecheck && vp test run && vp build"
   },
   "dependencies": {
-    "vue": "^3.5.41"
+    "vue": "^3.5.42"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "catalog:",
-    "@vue/test-utils": "^2.4.11",
-    "happy-dom": "^20.11.6",
+    "@vue/test-utils": "^2.5.0",
+    "happy-dom": "^20.11.10",
     "typescript": "^5.9.3",
-    "vite": "catalog:",
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.9",
     "vite-plus": "catalog:",
-    "vitest": "catalog:",
-    "vue-tsc": "^3.3.10"
+    "vitest": "4.1.10",
+    "vue-tsc": "^3.3.11"
   }
 }
