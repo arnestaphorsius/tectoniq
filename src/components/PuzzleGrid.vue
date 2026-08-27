@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { cageAt, coordOf, indexOf } from '@/domain/grid'
+import { cageEdges } from '@/domain/grid'
 import { isWritable, nextSelection, toggledEntry, type Direction } from '@/domain/selection'
 import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/types'
 import { valueAt, type Violation } from '@/domain/validate'
@@ -40,33 +40,6 @@ const offendingCells = computed(() => {
   return cells
 })
 
-/**
- * A cage boundary is any edge where the neighbour sits in a different cage, or
- * where the grid ends. Drawing per-cell keeps this independent of cage shape.
- */
-function cageEdges(cell: number) {
-  const { row, col } = coordOf(props.puzzle, cell)
-  const own = cageAt(props.puzzle, cell)
-  const differs = (dRow: number, dCol: number): boolean => {
-    const next = { row: row + dRow, col: col + dCol }
-    if (
-      next.row < 0 ||
-      next.row >= props.puzzle.height ||
-      next.col < 0 ||
-      next.col >= props.puzzle.width
-    ) {
-      return true
-    }
-    return cageAt(props.puzzle, indexOf(props.puzzle, next)) !== own
-  }
-  return {
-    'edge-top': differs(-1, 0),
-    'edge-right': differs(0, 1),
-    'edge-bottom': differs(1, 0),
-    'edge-left': differs(0, -1),
-  }
-}
-
 const cells = computed(() =>
   props.puzzle.cages.map((_, cell) => {
     const isGiven = props.puzzle.givens[cell] != null
@@ -79,7 +52,7 @@ const cells = computed(() =>
       // the player what their own digit collided with.
       isOffending: offendingCells.value.has(cell),
       isSelected: selected.value === cell,
-      edges: cageEdges(cell),
+      edges: cageEdges(props.puzzle, cell),
     }
   }),
 )

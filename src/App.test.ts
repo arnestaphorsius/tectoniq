@@ -163,3 +163,58 @@ describe('violation marker', () => {
     expect(hasMarker(wrapper, 0)).toBe(false)
   })
 })
+
+describe('screens', () => {
+  /** Presses on the first cell of the editor grid, moves across the rest, releases. */
+  async function drawCage(wrapper: VueWrapper, path: readonly number[]) {
+    const [start, ...rest] = path
+    await cell(wrapper, start as number).trigger('pointerdown')
+    for (const index of rest) await cell(wrapper, index).trigger('pointermove')
+    await cell(wrapper, path[path.length - 1] as number).trigger('pointerup')
+  }
+
+  const openEditor = (wrapper: VueWrapper) =>
+    wrapper.get('[data-testid="open-editor"]').trigger('click')
+  const openPlay = (wrapper: VueWrapper) =>
+    wrapper.get('[data-testid="open-play"]').trigger('click')
+
+  it('opens on the play screen and offers the editor', () => {
+    const wrapper = mountApp()
+
+    expect(wrapper.find('[data-testid="puzzle-grid"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-testid="cell"]')).toHaveLength(20)
+    expect(wrapper.find('[data-testid="open-editor"]').exists()).toBe(true)
+  })
+
+  it('opening the editor replaces the sample grid', async () => {
+    const wrapper = mountApp()
+
+    await openEditor(wrapper)
+
+    expect(wrapper.find('[data-testid="puzzle-editor"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="puzzle-grid"]').exists()).toBe(false)
+  })
+
+  it('returning to play restores the sample and digit entry still works', async () => {
+    const wrapper = mountApp()
+    await openEditor(wrapper)
+
+    await openPlay(wrapper)
+
+    expect(wrapper.find('[data-testid="puzzle-grid"]').exists()).toBe(true)
+    await pressOn(wrapper, 0, '4')
+    expect(cell(wrapper, 0).text()).toBe('4')
+  })
+
+  it('drawn cages survive a round trip to the play screen', async () => {
+    const wrapper = mountApp()
+    await openEditor(wrapper)
+    await drawCage(wrapper, [0, 1])
+    expect(cell(wrapper, 0).classes('edge-right')).toBe(false)
+
+    await openPlay(wrapper)
+    await openEditor(wrapper)
+
+    expect(cell(wrapper, 0).classes('edge-right')).toBe(false)
+  })
+})
