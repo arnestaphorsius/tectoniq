@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
+import PuzzleEditor from './components/PuzzleEditor.vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
 import { SAMPLE_PUZZLE } from './domain/samplePuzzle'
 import { withEntry } from './domain/selection'
-import { emptyBoard, type Board, type Digit } from './domain/types'
+import { emptyBoard, type Board, type Digit, type Puzzle } from './domain/types'
 import { findViolations } from './domain/validate'
 
-// The board is the app's state; the grid owns only which cell is selected. Cage
-// drawing (the editor) is a later ticket.
+// The board is the app's state; the grid owns only which cell is selected.
 const board = ref<Board>(emptyBoard(SAMPLE_PUZZLE))
 const violations = computed(() => findViolations(SAMPLE_PUZZLE, board.value))
+
+/**
+ * One screen shows at a time. The drawn puzzle is held here rather than in the
+ * editor because the editor is unmounted on the way to the play screen, and the
+ * work has to survive the trip; it lives only as long as the tab does.
+ */
+const screen = ref<'play' | 'editor'>('play')
+const drawn = shallowRef<Puzzle | undefined>()
 
 function onEntry(cell: number, digit: Digit | null) {
   board.value = withEntry(board.value, cell, digit)
@@ -23,11 +31,29 @@ function onEntry(cell: number, digit: Digit | null) {
       <p class="tagline">Help for Tectonic &amp; Suguru puzzles</p>
     </header>
 
-    <PuzzleGrid :puzzle="SAMPLE_PUZZLE" :board="board" :violations="violations" @entry="onEntry" />
+    <nav class="screens">
+      <button type="button" data-testid="open-play" @click="screen = 'play'">
+        Play the sample
+      </button>
+      <button type="button" data-testid="open-editor" @click="screen = 'editor'">
+        Create a puzzle
+      </button>
+    </nav>
 
-    <p data-testid="violation-count">
-      {{ violations.length }} rule {{ violations.length === 1 ? 'violation' : 'violations' }}
-    </p>
+    <template v-if="screen === 'play'">
+      <PuzzleGrid
+        :puzzle="SAMPLE_PUZZLE"
+        :board="board"
+        :violations="violations"
+        @entry="onEntry"
+      />
+
+      <p data-testid="violation-count">
+        {{ violations.length }} rule {{ violations.length === 1 ? 'violation' : 'violations' }}
+      </p>
+    </template>
+
+    <PuzzleEditor v-else :initial-puzzle="drawn" @change="(puzzle) => (drawn = puzzle)" />
   </main>
 </template>
 
@@ -53,5 +79,16 @@ h1 {
 
 header {
   text-align: center;
+}
+
+.screens {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.screens button {
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+  cursor: pointer;
 }
 </style>
