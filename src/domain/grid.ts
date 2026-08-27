@@ -112,3 +112,35 @@ export function isCageContiguous(puzzle: Puzzle, cageId: CageId): boolean {
   }
   return seen.size === cells.length
 }
+
+/**
+ * Which sides of a cell sit on a cage boundary.
+ *
+ * The keys are the grid's edge classes, so both grids can bind the result straight
+ * to `:class`. Keeping the shape here rather than in a component is what makes this
+ * the one place cage borders are derived from `puzzle.cages` — the play grid and the
+ * editor draw the same boundaries because they ask the same function.
+ */
+export type CageEdges = Readonly<
+  Record<'edge-top' | 'edge-right' | 'edge-bottom' | 'edge-left', boolean>
+>
+
+/**
+ * A boundary is any side where the neighbour sits in a different cage, or where the
+ * grid ends. Deriving it per cell keeps this independent of cage shape.
+ */
+export function cageEdges(puzzle: Puzzle, cell: number): CageEdges {
+  const { row, col } = coordOf(puzzle, cell)
+  const own = cageAt(puzzle, cell)
+  const differs = (dRow: number, dCol: number): boolean => {
+    const next = { row: row + dRow, col: col + dCol }
+    if (!inBounds(puzzle, next)) return true
+    return cageAt(puzzle, indexOf(puzzle, next)) !== own
+  }
+  return {
+    'edge-top': differs(-1, 0),
+    'edge-right': differs(0, 1),
+    'edge-bottom': differs(1, 0),
+    'edge-left': differs(0, -1),
+  }
+}
