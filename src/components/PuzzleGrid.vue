@@ -120,59 +120,81 @@ watch(selected, (cell) => {
 </script>
 
 <template>
-  <div
-    ref="root"
-    class="grid"
-    data-testid="puzzle-grid"
-    :style="{ '--cols': puzzle.width }"
-    role="grid"
-    :aria-label="`${puzzle.width} by ${puzzle.height} Tectonic puzzle`"
-    @keydown="onKeydown"
-  >
+  <!--
+    The frame is the query container the cell size is measured against, and the
+    only thing that ever scrolls. Without it a wide grid widened the document and
+    dragged the whole page off-centre.
+  -->
+  <div class="grid-frame">
     <div
-      v-for="cell in cells"
-      :key="cell.cell"
-      class="cell"
-      :class="[cell.edges, { given: cell.isGiven, selected: cell.isSelected }]"
-      data-testid="cell"
-      :data-cell="cell.cell"
-      role="gridcell"
-      :aria-selected="cell.isSelected ? 'true' : undefined"
-      :tabindex="cell.isSelected ? 0 : -1"
-      @click="select(cell.cell)"
+      ref="root"
+      class="grid"
+      data-testid="puzzle-grid"
+      :style="{ '--cols': puzzle.width }"
+      role="grid"
+      :aria-label="`${puzzle.width} by ${puzzle.height} Tectonic puzzle`"
+      @keydown="onKeydown"
     >
-      <!--
+      <div
+        v-for="cell in cells"
+        :key="cell.cell"
+        class="cell"
+        :class="[cell.edges, { given: cell.isGiven, selected: cell.isSelected }]"
+        data-testid="cell"
+        :data-cell="cell.cell"
+        role="gridcell"
+        :aria-selected="cell.isSelected ? 'true' : undefined"
+        :tabindex="cell.isSelected ? 0 : -1"
+        @click="select(cell.cell)"
+      >
+        <!--
         The digit is an element rather than bare text so that an empty cell has no
         child nodes at all. Bare text next to the marker leaves a whitespace node
         behind, which makes every cell match `:not(:empty)`.
       -->
-      <span v-if="cell.value !== null" class="digit">{{ cell.value }}</span>
-      <span
-        v-if="cell.isOffending"
-        class="marker"
-        data-testid="violation-marker"
-        role="status"
-        aria-label="breaks a rule"
-      />
+        <span v-if="cell.value !== null" class="digit">{{ cell.value }}</span>
+        <span
+          v-if="cell.isOffending"
+          class="marker"
+          data-testid="violation-marker"
+          role="status"
+          aria-label="breaks a rule"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.grid-frame {
+  container-type: inline-size;
+  width: 100%;
+  overflow-x: auto;
+}
+
+/*
+ * The cell is a function of the space the frame offers and the column count: it
+ * fills the column up to 3rem, then shrinks to `--cell-floor` before the frame
+ * starts scrolling. The 4px is the grid's own 2px frame on each side.
+ */
 .grid {
+  --cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), 3rem);
+
   display: grid;
-  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-auto-rows: var(--cell);
+  width: max-content;
+  margin-inline: auto;
   border: 2px solid var(--cage-rule);
   background: var(--paper);
 }
 
 .cell {
   position: relative;
-  width: 3rem;
-  height: 3rem;
   display: grid;
   place-items: center;
-  font-size: 1.25rem;
+  /* Tied to the cell so a digit keeps its proportion as the grid narrows. */
+  font-size: max(0.9rem, calc(var(--cell) / 2.4));
   font-variant-numeric: tabular-nums;
   color: var(--entry);
   border: 1px solid var(--rule);
@@ -191,16 +213,19 @@ watch(selected, (cell) => {
 /*
  * The violation marker. A right triangle in the top-right corner, rather than
  * recolouring the digit — a red digit reads as a styling choice and says nothing
- * about which cell to look at.
+ * about which cell to look at. It scales with the cell for the same reason the
+ * digit does, and stops at 0.5rem so it stays findable in a narrow grid.
  */
 .marker {
+  --size: max(0.5rem, calc(var(--cell) / 4.3));
+
   position: absolute;
   top: 0;
   right: 0;
   width: 0;
   height: 0;
-  border-top: 0.7rem solid var(--bad);
-  border-left: 0.7rem solid transparent;
+  border-top: var(--size) solid var(--bad);
+  border-left: var(--size) solid transparent;
 }
 
 /* Cage outlines sit on top of the light interior rules. */

@@ -26,21 +26,35 @@ function onEntry(cell: number, digit: Digit | null) {
 
 <template>
   <main class="page">
-    <header>
-      <h1>Tectoniq</h1>
-      <p class="tagline">Help for Tectonic &amp; Suguru puzzles</p>
-    </header>
+    <div class="chrome">
+      <header>
+        <h1>Tectoniq</h1>
+        <p class="tagline">Help for Tectonic &amp; Suguru puzzles</p>
+      </header>
 
-    <nav class="screens">
-      <button type="button" data-testid="open-play" @click="screen = 'play'">
-        Play the sample
-      </button>
-      <button type="button" data-testid="open-editor" @click="screen = 'editor'">
-        Create a puzzle
-      </button>
-    </nav>
+      <nav class="screens">
+        <button
+          type="button"
+          data-testid="open-play"
+          :class="{ current: screen === 'play' }"
+          :aria-current="screen === 'play' ? 'page' : undefined"
+          @click="screen = 'play'"
+        >
+          Play the sample
+        </button>
+        <button
+          type="button"
+          data-testid="open-editor"
+          :class="{ current: screen === 'editor' }"
+          :aria-current="screen === 'editor' ? 'page' : undefined"
+          @click="screen = 'editor'"
+        >
+          Create a puzzle
+        </button>
+      </nav>
+    </div>
 
-    <template v-if="screen === 'play'">
+    <div v-if="screen === 'play'" class="work">
       <PuzzleGrid
         :puzzle="SAMPLE_PUZZLE"
         :board="board"
@@ -48,21 +62,39 @@ function onEntry(cell: number, digit: Digit | null) {
         @entry="onEntry"
       />
 
-      <p data-testid="violation-count">
+      <p class="status" data-testid="violation-count">
         {{ violations.length }} rule {{ violations.length === 1 ? 'violation' : 'violations' }}
       </p>
-    </template>
+    </div>
 
     <PuzzleEditor v-else :initial-puzzle="drawn" @change="(puzzle) => (drawn = puzzle)" />
   </main>
 </template>
 
 <style scoped>
+/*
+ * Two blocks, far apart: the chrome you navigate with, and the puzzle you came
+ * for. Everything inside a block is bound to it by a much smaller gap, so the
+ * squint test resolves to those two before it resolves to anything else.
+ */
 .page {
+  max-width: var(--measure);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--space-xl);
+  padding: var(--space-xl) var(--space-md);
+}
+
+.chrome {
   display: grid;
   justify-items: center;
-  gap: 1.5rem;
-  padding: 2rem 1rem;
+  gap: var(--space-md);
+}
+
+header {
+  text-align: center;
 }
 
 h1 {
@@ -72,23 +104,61 @@ h1 {
 }
 
 .tagline {
-  margin: 0.25rem 0 0;
+  margin: var(--space-2xs) 0 0;
   opacity: 0.7;
   font-size: 0.9rem;
 }
 
-header {
-  text-align: center;
-}
-
+/*
+ * The switcher is navigation, not a control on the puzzle, so it is set as text
+ * rather than as two filled buttons — as buttons they were the highest-contrast
+ * objects on the page and beat the grid in the squint test. The current screen is
+ * marked three ways over, so it survives greyscale and a dropped colour: full ink
+ * against 0.7, weight 600, and a 2px rule under it.
+ */
 .screens {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-lg);
 }
 
 .screens button {
-  padding: 0.35rem 0.75rem;
+  padding: var(--space-sm) var(--space-2xs);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ink);
+  opacity: 0.7;
   font: inherit;
   cursor: pointer;
+}
+
+.screens button:hover {
+  opacity: 1;
+}
+
+.screens button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.screens button.current {
+  border-bottom-color: var(--ink);
+  opacity: 1;
+  font-weight: 600;
+}
+
+/* The count is what the grid currently says, so it is held close to it. */
+.work {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--space-sm);
+}
+
+.status {
+  margin: 0;
+  font-size: 0.9rem;
 }
 </style>
