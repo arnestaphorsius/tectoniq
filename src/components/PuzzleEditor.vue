@@ -171,46 +171,53 @@ onBeforeUnmount(endDrag)
       <p v-if="refusal" class="refusal" data-testid="size-message" role="alert">{{ refusal }}</p>
     </div>
 
-    <div
-      class="grid"
-      data-testid="editor-grid"
-      :style="{ '--cols': puzzle.width }"
-      :data-width="puzzle.width"
-      role="grid"
-      :aria-label="`${puzzle.width} by ${puzzle.height} cage layout`"
-      @pointerdown="onPointerDown"
-      @pointermove="onPointerMove"
-    >
+    <!-- The frame is the query container for the cell size; see PuzzleGrid. -->
+    <div class="grid-frame">
       <div
-        v-for="entry in cells"
-        :key="entry.cell"
-        class="cell"
-        :class="entry.edges"
-        data-testid="cell"
-        :data-cell="entry.cell"
-        role="gridcell"
-      />
+        class="grid"
+        data-testid="editor-grid"
+        :style="{ '--cols': puzzle.width }"
+        :data-width="puzzle.width"
+        role="grid"
+        :aria-label="`${puzzle.width} by ${puzzle.height} cage layout`"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+      >
+        <div
+          v-for="entry in cells"
+          :key="entry.cell"
+          class="cell"
+          :class="entry.edges"
+          data-testid="cell"
+          :data-cell="entry.cell"
+          role="gridcell"
+        />
+      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
 .editor {
+  width: 100%;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
-  gap: 1rem;
+  gap: var(--space-lg);
 }
 
+/* Presets and the custom fields are two ways to do one thing, so they read as
+   one group: bound tightly to each other, and set well apart from the grid. */
 .sizing {
   display: grid;
   justify-items: center;
-  gap: 0.5rem;
+  gap: var(--space-xs);
 }
 
 .row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-xs);
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -224,12 +231,12 @@ label {
 
 input {
   width: 4rem;
-  padding: 0.25rem;
+  padding: var(--space-2xs);
   font: inherit;
 }
 
 button {
-  padding: 0.35rem 0.75rem;
+  padding: 0.35rem var(--space-sm);
   font: inherit;
   cursor: pointer;
 }
@@ -240,9 +247,22 @@ button {
   font-size: 0.9rem;
 }
 
+.grid-frame {
+  container-type: inline-size;
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Same fluid cell as the play grid, drawn smaller: a 12-wide layout has to stay
+   drawable, so the editor's ceiling is lower while the floor is shared. */
 .grid {
+  --cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), 2.25rem);
+
   display: grid;
-  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-auto-rows: var(--cell);
+  width: max-content;
+  margin-inline: auto;
   border: 2px solid var(--cage-rule);
   background: var(--paper);
   /* Without this a touch drag scrolls the page instead of drawing a cage. */
@@ -251,8 +271,6 @@ button {
 }
 
 .cell {
-  width: 2.25rem;
-  height: 2.25rem;
   border: 1px solid var(--rule);
 }
 

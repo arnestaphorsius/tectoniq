@@ -7,6 +7,29 @@
   --entry: #2f6f9f;
   --bad: #b4342a;
 
+  /*
+   * The spacing rhythm. Six steps on a 0.25rem base, used so that distance says
+   * what belongs together: 2xs..xs bind a group, xl separates the page's chrome
+   * from the puzzle. Reach for the next step rather than inventing a value.
+   */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+
+  /*
+   * A grid cell fills the column it is given and stops at this floor; below it
+   * the grid scrolls inside its frame rather than widening the page. 1.75rem is
+   * 28px, which clears the 24px WCAG 2.2 target minimum and is tuned so a full
+   * 12-wide grid still fits a 375px phone without scrolling at all.
+   */
+  --cell-floor: 1.75rem;
+
+  /* The single column's measure: a 12-wide play grid plus its gutters. */
+  --measure: 40rem;
+
   color-scheme: light dark;
   font-family:
     ui-sans-serif,
@@ -34,10 +57,16 @@
   box-sizing: border-box;
 }
 
+/*
+ * The page is anchored to the top rather than centred in the viewport. Centring a
+ * stack whose height changes with the grid moved the puzzle up and down the screen
+ * every time you switched screens or resized it; the grid should not move unless
+ * the player moved it. Block layout, not grid: a centred item in an `auto` track
+ * makes its own `width: 100%` cyclic, and the grids inside need a definite width
+ * to measure their cells against.
+ */
 body {
   margin: 0;
   min-height: 100vh;
-  display: grid;
-  place-items: center;
   background: var(--paper);
 }
