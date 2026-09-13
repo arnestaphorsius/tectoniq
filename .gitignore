@@ -8,8 +8,18 @@ coverage/
 # Artifacts
 work/
 
+# Impeccable
+.github/skills/impeccable
+.claude/skills/impeccable
+
 # Playwright
 /test-results/
 /playwright-report/
 /blob-report/
 /.playwright/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
