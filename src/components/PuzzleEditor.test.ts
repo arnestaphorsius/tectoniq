@@ -295,3 +295,137 @@ describe('drawing', () => {
     expect(joined(wrapper, 0, 1)).toBe(true)
   })
 })
+
+describe('checking the layout', () => {
+  function checkLayout(wrapper: VueWrapper) {
+    return wrapper.get('[data-testid="check-layout"]').trigger('click')
+  }
+
+  function verdict(wrapper: VueWrapper) {
+    return wrapper.get('[data-testid="validation-message"]')
+  }
+
+  function markers(wrapper: VueWrapper) {
+    return wrapper.findAll('[data-testid="unassigned-marker"]')
+  }
+
+  it('offers a way to check the layout', () => {
+    const wrapper = mountEditor()
+
+    expect(wrapper.find('[data-testid="check-layout"]').exists()).toBe(true)
+  })
+
+  it('says nothing before anything has been checked', () => {
+    const wrapper = mountEditor()
+
+    // Present but empty: a polite live region has to exist before it can announce.
+    expect(wrapper.find('[data-testid="validation-message"]').exists()).toBe(true)
+    expect(verdict(wrapper).text()).toBe('')
+  })
+
+  it('reports an untouched grid as not started, and marks nothing', async () => {
+    const wrapper = mountEditor()
+
+    await checkLayout(wrapper)
+
+    expect(verdict(wrapper).text()).toContain('Nothing is drawn yet')
+    expect(markers(wrapper)).toHaveLength(0)
+  })
+
+  it('counts the cells left out of a cage and marks each one', async () => {
+    const wrapper = mountEditor()
+    await drag(wrapper, [0, 1, 2])
+
+    await checkLayout(wrapper)
+
+    expect(verdict(wrapper).text()).toContain('22 cells are not in a cage yet')
+    expect(markers(wrapper)).toHaveLength(22)
+  })
+
+  it('marks the cells without a cage and no others', async () => {
+    const wrapper = mountEditor()
+    await drag(wrapper, [0, 1, 2])
+
+    await checkLayout(wrapper)
+
+    for (const drawn of [0, 1, 2]) {
+      expect(cell(wrapper, drawn).find('[data-testid="unassigned-marker"]').exists()).toBe(false)
+    }
+    expect(cell(wrapper, 3).find('[data-testid="unassigned-marker"]').exists()).toBe(true)
+  })
+
+  it('says a single remaining cell in the singular', async () => {
+    const wrapper = mountEditor()
+    // A 3×3 partitioned but for one cell: two cages of four leave 8 over.
+    await applyCustom(wrapper, '3', '3')
+    await drag(wrapper, [0, 1, 2, 5])
+    await drag(wrapper, [3, 4, 6, 7])
+
+    await checkLayout(wrapper)
+
+    expect(verdict(wrapper).text()).toContain('1 cell is not in a cage yet')
+    expect(markers(wrapper)).toHaveLength(1)
+  })
+
+  it('confirms a layout in which every cell is in a cage', async () => {
+    const wrapper = mountEditor()
+    await applyCustom(wrapper, '3', '3')
+    await drag(wrapper, [0, 1, 2, 5])
+    await drag(wrapper, [3, 4, 6, 7])
+    await drag(wrapper, [8])
+
+    await checkLayout(wrapper)
+
+    expect(verdict(wrapper).text()).toContain('The layout is complete')
+    expect(markers(wrapper)).toHaveLength(0)
+  })
+
+  it('does not claim a complete layout can be solved', async () => {
+    const wrapper = mountEditor()
+    await applyCustom(wrapper, '3', '3')
+    await drag(wrapper, [0, 1, 2, 5])
+    await drag(wrapper, [3, 4, 6, 7])
+    await drag(wrapper, [8])
+
+    await checkLayout(wrapper)
+
+    // Structural completeness is not solvability — validate.test.ts keeps a
+    // TWO_BY_TWO fixture that passes every check and provably has no solution.
+    // This guards the copy, so a future edit cannot quietly start over-claiming.
+    expect(verdict(wrapper).text().toLowerCase()).not.toContain('solv')
+    expect(verdict(wrapper).text().toLowerCase()).not.toContain('valid')
+  })
+
+  it('drops the verdict as soon as a cage is drawn', async () => {
+    const wrapper = mountEditor()
+    await checkLayout(wrapper)
+    expect(verdict(wrapper).text()).not.toBe('')
+
+    // Mid-drag, before any release: a verdict must not outlive the layout it read.
+    await press(wrapper, [0, 1])
+
+    expect(verdict(wrapper).text()).toBe('')
+    expect(markers(wrapper)).toHaveLength(0)
+  })
+
+  it('drops the verdict when the size changes', async () => {
+    const wrapper = mountEditor()
+    await checkLayout(wrapper)
+    expect(verdict(wrapper).text()).not.toBe('')
+
+    await wrapper.get('[data-preset="7"]').trigger('click')
+
+    expect(verdict(wrapper).text()).toBe('')
+  })
+
+  it('keeps a standing verdict when a size is refused', async () => {
+    const wrapper = mountEditor()
+    await drag(wrapper, [0, 1, 2])
+    await checkLayout(wrapper)
+
+    await applyCustom(wrapper, '13', '13')
+
+    // The layout did not change, so what was said about it still holds.
+    expect(verdict(wrapper).text()).toContain('22 cells are not in a cage yet')
+  })
+})

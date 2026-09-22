@@ -247,6 +247,13 @@ drag draws a cage instead of scrolling. When the frame does scroll — below rou
 itself. This is the residue of the drag-versus-pan conflict, deliberately pushed below
 every real phone width rather than solved.
 
+**Known limit, recorded:** there is no way to take a cell back out of a cage. Before
+the editor opened on a blank grid this could not arise — every cell was always in
+some cage, so erasing meant nothing — but now a misdrawn cage can only be fixed by
+drawing over it or by re-applying the size to start again. An erase gesture was
+considered and deferred: click-to-unassign collides with click-to-make-a-cage-of-one,
+and a Draw/Erase toggle would add the screen's first mode.
+
 ## Elevation & Depth
 
 **There are no shadows in this project.** Not one `box-shadow` declaration exists.
@@ -308,6 +315,8 @@ decision serves.
 - **Why a corner mark and not a red digit:** a recoloured digit reads as a styling choice and says nothing about which cell to look at. The marker states "this digit is part of a broken rule".
 - **Placement rule:** it appears on **both** ends of a conflict, givens included, because seeing what your digit collided with is the entire point.
 - **Semantics:** `role="status"`, `aria-label="breaks a rule"`.
+- **Reused in the editor** to mean "this cell is in no cage", so that _named by a problem_ looks the same on both screens. Two differences, both deliberate: it is `aria-hidden` there, because the result line already states how many cells are left and a screenful of live regions would talk over it; and it carries `pointer-events: none`, so it can never become a target for a cage drag.
+- **Not shown when every cell is undrawn.** Marking all 144 cells of an untouched 12×12 applies the danger colour to something that has not gone wrong — the same argument as The Red Means Broken Rule. A grid nobody has started is reported in words alone.
 
 ### Buttons — provisional
 
@@ -337,11 +346,17 @@ dropped colour, and a screen reader. The inactive item at 0.7 opacity computes t
 6.11:1 against paper in light and 7.73:1 in dark.
 
 This is a hierarchy treatment, not a designed control. The editor's presets, size
-fields and Apply button are still native browser chrome and still provisional.
+fields, Apply button and Check the layout button are still native browser chrome and
+still provisional. The check button is deliberately not given a primary treatment: a
+filled control there would out-contrast the grid, which inverts the whole system.
 
 ### Messages
 
 - **Refusal** (editor size validation): Violation Red, `0.9rem`, `role="alert"`, no icon, no border, no background panel. A sentence, in red, where the problem is.
+- **Check result — problem** (editor layout check): Violation Red, `0.9rem`, same bare treatment. It names what is missing and what to do about it: "7 cells are not in a cage yet. Drag across them to draw one."
+- **Check result — pass**: the same region in **Ink, never green**. This is the rule most likely to be "fixed" by someone later, so the reason is written down: exactly two chromatic colours exist in this system and neither is a success colour, a third would break The Both-Themes Rule's audit, and celebrating a result contradicts the North Star's _nothing is celebrated_. The pass and problem states also differ in wording, so the message is legible with no colour at all.
+- **The check result region is rendered always and left empty** until a check runs, unlike Refusal, which is `v-if`'d. A polite `role="status"` must be in the DOM before its content changes to be announced; `role="alert"` is announced on insertion. Do not harmonise the two — they are different roles with different rules. An empty paragraph generates no line box, so nothing shifts.
+- **Wording discipline.** The passing sentence says the layout is _complete_, never that the puzzle is _valid_ or _solvable_. Structural completeness is not solvability: a layout can pass every check here and still have no solution. A unit test asserts the copy contains neither "solv" nor "valid" so this cannot quietly erode.
 
 ## Do's and Don'ts
 
@@ -364,6 +379,7 @@ fields and Apply button are still native browser chrome and still provisional.
 - **Don't** read "Newsprint" as texture. No paper grain, no sepia, no halftone, no torn edges, no nostalgic serifs, no faux-print colour cast. The metaphor is about printed-vs-written logic; the app must look current.
 - **Don't** use Entry Blue on anything that is not a player-entered digit or the player's selection ring.
 - **Don't** use Violation Red decoratively, as a brand colour, or on anything that is not actually wrong.
+- **Don't** introduce a success colour. A passing check is stated in Ink and in its wording; green would be a third chromatic colour in a system that has exactly two, and it would celebrate a result.
 - **Don't** thicken a border for emphasis — 2px means "cage boundary" and nothing else.
 - **Don't** cite the current buttons and inputs as the system's control style. They are native browser defaults, recorded as provisional.
 - **Don't** assume `--rule` (#c9c5bd, 1.65:1 against paper) satisfies the 3:1 non-text contrast threshold. It does not. The cage boundary at 16:1 is what carries the structural meaning; if the hairline ever becomes load-bearing on its own, it needs a new value.
