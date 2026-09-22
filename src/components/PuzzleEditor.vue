@@ -247,16 +247,19 @@ button {
   font-size: 0.9rem;
 }
 
+/* Capped at `--grid-max`, same as the play grid; see PuzzleGrid for why the cap
+   sits on the frame rather than in the clamp. */
 .grid-frame {
   container-type: inline-size;
   width: 100%;
+  max-width: var(--grid-max);
   overflow-x: auto;
 }
 
-/* Same fluid cell as the play grid, drawn smaller: a 12-wide layout has to stay
-   drawable, so the editor's ceiling is lower while the floor is shared. */
+/* The same fluid cell as the play grid, to the character: a cage should be the
+   size while you draw it that it will be while you play it. */
 .grid {
-  --cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), 2.25rem);
+  --cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), var(--cell-max));
 
   display: grid;
   grid-template-columns: repeat(var(--cols), var(--cell));

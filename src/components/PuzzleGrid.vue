@@ -166,19 +166,23 @@ watch(selected, (cell) => {
 </template>
 
 <style scoped>
+/* `--grid-max` is what caps the puzzle at 800px: `100cqi` below is this frame's
+   inline size, so capping the frame makes the ceiling bind through the arithmetic
+   that is already there, and the thing that scrolls stays the thing that centres. */
 .grid-frame {
   container-type: inline-size;
   width: 100%;
+  max-width: var(--grid-max);
   overflow-x: auto;
 }
 
 /*
  * The cell is a function of the space the frame offers and the column count: it
- * fills the column up to 3rem, then shrinks to `--cell-floor` before the frame
- * starts scrolling. The 4px is the grid's own 2px frame on each side.
+ * fills the column up to `--cell-max`, then shrinks to `--cell-floor` before the
+ * frame starts scrolling. The 4px is the grid's own 2px frame on each side.
  */
 .grid {
-  --cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), 3rem);
+  --cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), var(--cell-max));
 
   display: grid;
   grid-template-columns: repeat(var(--cols), var(--cell));
