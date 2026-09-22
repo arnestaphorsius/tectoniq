@@ -1,12 +1,14 @@
 import { adjacent, cageIds, cellCount, cellsInCage } from './grid'
-import { MAX_CAGE_SIZE, type Digit, type Puzzle } from './types'
+import { MAX_CAGE_SIZE, type CageId, type Digit, type Puzzle } from './types'
 
 /**
  * Cage drawing, as pure arithmetic over a `Puzzle`.
  *
- * The editor never holds a half-built partition. Every function here returns a
- * puzzle that `validatePuzzle` accepts, which is what lets the editor treat
- * validity as an invariant instead of an error state it has to render.
+ * The editor does hold a half-built partition — it opens on one, since a grid
+ * nobody has drawn on is exactly that. What stays invariant is narrower and more
+ * useful: every cage these functions produce is contiguous and at most five cells,
+ * however the pointer wandered. So the only defect they can leave behind is a cell
+ * nobody has drawn on yet, which is precisely the thing the editor asks about.
  */
 
 /** The smallest and largest side the editor accepts, inclusive. */
@@ -48,17 +50,20 @@ function sideProblem(field: 'width' | 'height', value: number | null): SizeProbl
 }
 
 /**
- * An empty grid in which every cell is a cage of its own.
+ * A grid nobody has drawn on: every cell belongs to no cage at all.
  *
- * A one-cell cage is legal Tectonic — it admits only the digit 1 — so this is a
- * valid puzzle from the first render, and the editor needs no gridless state.
+ * The editor opens here rather than on a grid of one-cell cages. Cages of one are
+ * legal Tectonic and such a grid passes every structural check, but rule 3 forbids
+ * two equal digits touching and a one-cell cage admits only the digit 1 — so it is
+ * never a puzzle anyone can solve. Offering it as the starting point invites the
+ * reader to believe the grid is already finished.
  */
-export function oneCellPerCage(width: number, height: number): Puzzle {
+export function emptyLayout(width: number, height: number): Puzzle {
   const count = width * height
   return {
     width,
     height,
-    cages: Array.from({ length: count }, (_, cell) => cell),
+    cages: Array.from({ length: count }, (): CageId | null => null),
     givens: Array.from({ length: count }, (): Digit | null => null),
   }
 }
@@ -83,6 +88,9 @@ export function withCells(puzzle: Puzzle, path: readonly number[]): Puzzle {
 
   const taken = new Set(drawn)
   const groups: number[][] = [drawn]
+  // `cageIds` leaves out the undrawn cells, so they are never gathered into a group
+  // and `regrouped` below leaves them as they are. That is the whole mechanism by
+  // which drawing one cage does not quietly adopt the blank cells around it.
   for (const cageId of cageIds(puzzle)) {
     const left = cellsInCage(puzzle, cageId).filter((cell) => !taken.has(cell))
     groups.push(...pieces(puzzle, left))

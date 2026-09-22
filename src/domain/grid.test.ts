@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vite-plus/test'
 import {
   adjacent,
+  cageAt,
+  cageEdges,
   cageIds,
   cageSize,
   cellCount,
@@ -113,5 +115,65 @@ describe('cage contiguity', () => {
   it('rejects a cage split into islands', () => {
     expect(isCageContiguous(SPLIT_CAGE, 0)).toBe(false)
     expect(isCageContiguous(SPLIT_CAGE, 1)).toBe(true)
+  })
+})
+
+/**
+ * A 3×2 with a cage of two, a cage of one, and three cells nobody has drawn on.
+ *
+ *    0  0  .
+ *    1  .  .
+ */
+// prettier-ignore
+const PART_DRAWN: Puzzle = {
+  width: 3,
+  height: 2,
+  cages: [
+    0,    0,    null,
+    1,    null, null,
+  ],
+  givens: Array.from({ length: 6 }, () => null),
+}
+
+describe('a part-drawn layout', () => {
+  it('leaves the undrawn cells out of the cage ids', () => {
+    expect(cageIds(PART_DRAWN)).toEqual([0, 1])
+  })
+
+  it('never collects an undrawn cell into a cage', () => {
+    expect(cellsInCage(PART_DRAWN, 0)).toEqual([0, 1])
+    expect(cellsInCage(PART_DRAWN, 1)).toEqual([3])
+  })
+
+  it('is null at an undrawn cell and undefined past the end', () => {
+    expect(cageAt(PART_DRAWN, 2)).toBeNull()
+    expect(cageAt(PART_DRAWN, 0)).toBe(0)
+    expect(cageAt(PART_DRAWN, 6)).toBeUndefined()
+  })
+
+  it('measures contiguity without regard to undrawn neighbours', () => {
+    expect(isCageContiguous(PART_DRAWN, 0)).toBe(true)
+    expect(isCageContiguous(PART_DRAWN, 1)).toBe(true)
+  })
+
+  it('draws no boundary between two undrawn neighbours', () => {
+    // 4 and 5 are both nobody's, so nothing separates them.
+    expect(cageEdges(PART_DRAWN, 4)['edge-right']).toBe(false)
+    expect(cageEdges(PART_DRAWN, 5)['edge-left']).toBe(false)
+  })
+
+  it('draws a boundary where a cage meets an undrawn cell', () => {
+    // The cage's edge is real even though the cell on the far side is nobody's.
+    expect(cageEdges(PART_DRAWN, 1)['edge-right']).toBe(true)
+    expect(cageEdges(PART_DRAWN, 2)['edge-left']).toBe(true)
+    expect(cageEdges(PART_DRAWN, 3)['edge-right']).toBe(true)
+  })
+
+  it('draws a boundary at the grid edge of an undrawn cell', () => {
+    // The `inBounds` guard has to answer before `cageAt` does, or an undrawn cell
+    // would be compared against the `undefined` of a missing one and match nothing.
+    expect(cageEdges(PART_DRAWN, 2)['edge-top']).toBe(true)
+    expect(cageEdges(PART_DRAWN, 2)['edge-right']).toBe(true)
+    expect(cageEdges(PART_DRAWN, 5)['edge-bottom']).toBe(true)
   })
 })

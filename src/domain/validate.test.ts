@@ -185,3 +185,76 @@ describe('completion', () => {
     expect(isSolved(PAIR, boardOf(1, null))).toBe(false)
   })
 })
+
+/**
+ * A 3×2 with a cage of two, a cage of one, and three cells nobody has drawn on.
+ *
+ *    0  0  .
+ *    1  .  .
+ */
+// prettier-ignore
+const PART_DRAWN: Puzzle = {
+  width: 3,
+  height: 2,
+  cages: [
+    0,    0,    null,
+    1,    null, null,
+  ],
+  givens: Array.from({ length: 6 }, () => null),
+}
+
+describe('an unfinished layout', () => {
+  it('names every cell that is not in a cage', () => {
+    expect(validatePuzzle(PART_DRAWN)).toContainEqual({
+      kind: 'cell-without-cage',
+      cells: [2, 4, 5],
+    })
+  })
+
+  it('gathers them into one problem rather than one problem each', () => {
+    const problems = validatePuzzle(PART_DRAWN)
+
+    expect(problems.filter((problem) => problem.kind === 'cell-without-cage')).toHaveLength(1)
+  })
+
+  it('still finds a broken cage alongside the cells left out', () => {
+    // Cage 0 is split into islands and three cells are undrawn: the `cageIds`
+    // filter must not have swallowed the cage checks along with the nulls.
+    // prettier-ignore
+    const puzzle: Puzzle = {
+      width: 3,
+      height: 2,
+      cages: [
+        0,    null, 0,
+        null, null, null,
+      ],
+      givens: Array.from({ length: 6 }, () => null),
+    }
+
+    expect(validatePuzzle(puzzle)).toContainEqual({ kind: 'cage-not-contiguous', cageId: 0 })
+    expect(validatePuzzle(puzzle)).toContainEqual({
+      kind: 'cell-without-cage',
+      cells: [1, 3, 4, 5],
+    })
+  })
+})
+
+describe('findViolations on an unfinished layout', () => {
+  it('does not bound a digit sitting in no cage', () => {
+    // A 5 in an undrawn cell exceeds nothing — there is no cage to exceed.
+    const board: Board = [null, null, 5, null, null, null]
+
+    expect(findViolations(PART_DRAWN, board)).toEqual([])
+  })
+
+  it('still flags two equal digits touching across an undrawn cell', () => {
+    // Rule 3 is about the grid, not about cages, so it applies either way.
+    const board: Board = [1, null, null, null, 1, null]
+
+    expect(findViolations(PART_DRAWN, board)).toContainEqual({
+      kind: 'touching-duplicate',
+      value: 1,
+      cells: [0, 4],
+    })
+  })
+})

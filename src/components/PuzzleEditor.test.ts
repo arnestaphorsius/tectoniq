@@ -38,10 +38,23 @@ function alone(wrapper: VueWrapper, index: number): boolean {
   return SIDES.every((side) => cell(wrapper, index).classes(side))
 }
 
-function everyCellAlone(wrapper: VueWrapper): boolean {
-  return wrapper
-    .findAll('[data-testid="cell"]')
-    .every((found) => SIDES.every((side) => found.classes(side)))
+/**
+ * Whether the grid draws no cage boundary anywhere inside it, which is how "nothing
+ * has been drawn" is observable in the DOM.
+ *
+ * A blank cell cannot be told from a drawn one on its own — both carry a hairline —
+ * so the assertion has to be about the borders *between* cells. A grid nobody has
+ * touched has none, because every neighbour agrees it is in no cage; the moment one
+ * cage exists, its boundary shows up here.
+ */
+function noInteriorBorders(wrapper: VueWrapper): boolean {
+  const width = Number(wrapper.get('[data-testid="editor-grid"]').attributes('data-width'))
+  const total = cellCount(wrapper)
+  for (let index = 0; index < total; index += 1) {
+    if ((index % width) + 1 < width && !joined(wrapper, index, index + 1)) return false
+    if (index + width < total && !joined(wrapper, index, index + width)) return false
+  }
+  return true
 }
 
 /** Presses on the first cell, moves across the rest, and releases on the last. */
@@ -68,12 +81,12 @@ function message(wrapper: VueWrapper) {
 }
 
 describe('sizing', () => {
-  it('opens on a 5 by 5 grid of one-cell cages', () => {
+  it('opens on a 5 by 5 grid with nothing drawn', () => {
     const wrapper = mountEditor()
 
     expect(cellCount(wrapper)).toBe(25)
     expect(wrapper.get('[data-testid="editor-grid"]').attributes('data-width')).toBe('5')
-    expect(everyCellAlone(wrapper)).toBe(true)
+    expect(noInteriorBorders(wrapper)).toBe(true)
   })
 
   it('offers the 5x5, 7x7 and 9x9 presets', () => {
@@ -84,13 +97,13 @@ describe('sizing', () => {
     expect(presets.map((found) => found.text())).toEqual(['5×5', '7×7', '9×9'])
   })
 
-  it('a preset renders that many cells, all one-cell cages', async () => {
+  it('a preset renders that many cells, with nothing drawn', async () => {
     const wrapper = mountEditor()
 
     await wrapper.get('[data-preset="7"]').trigger('click')
 
     expect(cellCount(wrapper)).toBe(49)
-    expect(everyCellAlone(wrapper)).toBe(true)
+    expect(noInteriorBorders(wrapper)).toBe(true)
   })
 
   it('offers width, height and an apply control', () => {
@@ -108,7 +121,7 @@ describe('sizing', () => {
 
     expect(cellCount(wrapper)).toBe(44)
     expect(wrapper.get('[data-testid="editor-grid"]').attributes('data-width')).toBe('4')
-    expect(everyCellAlone(wrapper)).toBe(true)
+    expect(noInteriorBorders(wrapper)).toBe(true)
   })
 
   it('accepts 3 and 12 at both bounds', async () => {
@@ -138,7 +151,7 @@ describe('sizing', () => {
       await applyCustom(wrapper, width as string, height as string)
 
       expect(cellCount(wrapper)).toBe(25)
-      expect(everyCellAlone(wrapper)).toBe(true)
+      expect(noInteriorBorders(wrapper)).toBe(true)
       expect(message(wrapper).text()).toContain('3')
       expect(message(wrapper).text()).toContain('12')
       wrapper.unmount()
@@ -164,7 +177,7 @@ describe('sizing', () => {
     await wrapper.get('[data-preset="5"]').trigger('click')
 
     expect(cellCount(wrapper)).toBe(25)
-    expect(everyCellAlone(wrapper)).toBe(true)
+    expect(noInteriorBorders(wrapper)).toBe(true)
   })
 })
 
@@ -202,8 +215,11 @@ describe('drawing', () => {
     ]) {
       expect(joined(wrapper, a as number, b as number)).toBe(true)
     }
-    expect(alone(wrapper, 9)).toBe(true)
-    expect(alone(wrapper, 14)).toBe(true)
+    // The cage is bounded where it stopped growing, and the two refused cells were
+    // left blank rather than made cages of their own.
+    expect(joined(wrapper, 4, 9)).toBe(false)
+    expect(alone(wrapper, 9)).toBe(false)
+    expect(joined(wrapper, 9, 14)).toBe(true)
   })
 
   it('a diagonal neighbour is not collected', async () => {
@@ -211,8 +227,10 @@ describe('drawing', () => {
 
     await drag(wrapper, [0, 6])
 
+    // 0 became a cage of one; 6 was refused and is still in no cage at all.
     expect(alone(wrapper, 0)).toBe(true)
-    expect(alone(wrapper, 6)).toBe(true)
+    expect(alone(wrapper, 6)).toBe(false)
+    expect(joined(wrapper, 6, 7)).toBe(true)
   })
 
   it('a cell sharing no edge with the cage is not collected', async () => {
@@ -221,7 +239,8 @@ describe('drawing', () => {
     await drag(wrapper, [0, 12])
 
     expect(alone(wrapper, 0)).toBe(true)
-    expect(alone(wrapper, 12)).toBe(true)
+    expect(alone(wrapper, 12)).toBe(false)
+    expect(joined(wrapper, 12, 13)).toBe(true)
   })
 
   it('the drag survives an ignored cell and resumes', async () => {
@@ -230,7 +249,9 @@ describe('drawing', () => {
     await drag(wrapper, [0, 6, 5])
 
     expect(joined(wrapper, 0, 5)).toBe(true)
-    expect(alone(wrapper, 6)).toBe(true)
+    // 6 is not in the cage, and is not a cage of its own either.
+    expect(joined(wrapper, 5, 6)).toBe(false)
+    expect(alone(wrapper, 6)).toBe(false)
   })
 
   it('a dragged-over cell leaves its old cage', async () => {

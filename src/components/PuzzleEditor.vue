@@ -4,7 +4,7 @@ import {
   DEFAULT_GRID_SIZE,
   MAX_GRID_SIZE,
   MIN_GRID_SIZE,
-  oneCellPerCage,
+  emptyLayout,
   SIZE_PRESETS,
   sizeProblem,
   withCells,
@@ -23,7 +23,7 @@ const props = defineProps<{ initialPuzzle?: Puzzle | undefined }>()
 const emit = defineEmits<{ change: [Puzzle] }>()
 
 const puzzle = shallowRef<Puzzle>(
-  props.initialPuzzle ?? oneCellPerCage(DEFAULT_GRID_SIZE, DEFAULT_GRID_SIZE),
+  props.initialPuzzle ?? emptyLayout(DEFAULT_GRID_SIZE, DEFAULT_GRID_SIZE),
 )
 
 // `v-model` on a number input casts for us, and hands back '' for a blank or
@@ -48,7 +48,7 @@ function resize(width: number, height: number) {
   refusal.value = null
   widthField.value = width
   heightField.value = height
-  commit(oneCellPerCage(width, height))
+  commit(emptyLayout(width, height))
 }
 
 function applySize() {

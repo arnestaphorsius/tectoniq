@@ -1,9 +1,17 @@
 import { cageIds, cageSize, cellCount, cellsInCage, isCageContiguous, touching } from './grid'
 import { isDigit, MAX_CAGE_SIZE, type Board, type CageId, type Digit, type Puzzle } from './types'
 
-/** A structural defect in a puzzle definition — a bug in the editor, not in play. */
+/**
+ * Something that stops a layout being a playable puzzle.
+ *
+ * Most of these are structural defects — a bug in whatever built the puzzle, not
+ * something a player can cause. `cell-without-cage` is the exception and is ordinary:
+ * it is what an unfinished layout in the editor looks like, and reporting it is the
+ * point rather than a failure.
+ */
 export type PuzzleProblem =
   | { readonly kind: 'empty-grid' }
+  | { readonly kind: 'cell-without-cage'; readonly cells: readonly number[] }
   | {
       readonly kind: 'array-length-mismatch'
       readonly field: 'cages' | 'givens'
@@ -35,9 +43,14 @@ export type Violation =
     }
 
 /**
- * Checks a puzzle definition against rules 1 and 2 before anyone plays it.
- * Returns every problem found rather than the first, so an editor can show them
- * all at once.
+ * Checks a puzzle definition against rules 1 and 2 before anyone plays it: every
+ * cell drawn into a cage, no cage larger than five, none split into islands, and
+ * every given a legal digit. Returns every problem found rather than the first, so
+ * an editor can show them all at once.
+ *
+ * This is a check of the layout, not of the puzzle. A layout can pass here and still
+ * have no solution — see the `TWO_BY_TWO` fixture in the tests — so nothing built on
+ * this may claim a puzzle is solvable.
  */
 export function validatePuzzle(puzzle: Puzzle): PuzzleProblem[] {
   const problems: PuzzleProblem[] = []
@@ -66,6 +79,14 @@ export function validatePuzzle(puzzle: Puzzle): PuzzleProblem[] {
   }
   // Later checks index by cell, so bail before reading past either array.
   if (problems.length > 0) return problems
+
+  // Before the cage checks, because an undrawn cell is in no cage and so is
+  // invisible to `cageIds` — every loop below would skip past it in silence.
+  const undrawn: number[] = []
+  puzzle.cages.forEach((id, cell) => {
+    if (id === null) undrawn.push(cell)
+  })
+  if (undrawn.length > 0) problems.push({ kind: 'cell-without-cage', cells: undrawn })
 
   for (const cageId of cageIds(puzzle)) {
     const size = cageSize(puzzle, cageId)
@@ -99,7 +120,9 @@ export function findViolations(puzzle: Puzzle, board: Board): Violation[] {
   for (let cell = 0; cell < total; cell += 1) {
     const value = valueAt(puzzle, board, cell)
     const cageId = puzzle.cages[cell]
-    if (value === null || cageId === undefined) continue
+    // `== null` catches both the missing cell and the undrawn one: a digit sitting
+    // in no cage has no cage size to exceed.
+    if (value === null || cageId == null) continue
     const size = cageSize(puzzle, cageId)
     if (value > size) {
       violations.push({ kind: 'value-exceeds-cage', cell, value, cageSize: size })
