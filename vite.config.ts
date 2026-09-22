@@ -192,7 +192,23 @@ export default defineConfig({
     printWidth: 100,
     trailingComma: 'all',
     sortPackageJson: false,
-    ignorePatterns: ['dist/', 'coverage/', 'pnpm-lock.yaml', 'playwright-report/', 'test-results/'],
+    // The second group is written by tools, not by people: `bd` regenerates
+    // `.beads/`, `.agents/`, `AGENTS.md` and its managed block in `CLAUDE.md`
+    // — the block even carries a content hash — and Claude Code owns
+    // `.claude/settings.json`. Formatting them turns the quality gate into a
+    // race against whichever tool writes last, so they are left alone.
+    ignorePatterns: [
+      'dist/',
+      'coverage/',
+      'pnpm-lock.yaml',
+      'playwright-report/',
+      'test-results/',
+      '.beads/',
+      '.agents/',
+      'AGENTS.md',
+      'CLAUDE.md',
+      '.claude/settings.json',
+    ],
   },
   plugins: lazyPlugins(() => [vue()]),
   resolve: {
