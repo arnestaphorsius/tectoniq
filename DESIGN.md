@@ -40,7 +40,7 @@ spacing:
   offScale: '0.35rem'
 components:
   cell:
-    width: 'clamp(1.75rem, (100cqi - 4px) / var(--cols), 3rem)'
+    width: 'clamp(1.75rem, (100cqi - 4px) / var(--cols), 5rem)'
     height: '{components.cell.width}'
     textColor: '{colors.entry}'
     typography: '{typography.numeral}'
@@ -52,8 +52,8 @@ components:
     typography: '{typography.numeral}'
     rounded: '{rounded.none}'
   cell-editor:
-    width: 'clamp(1.75rem, (100cqi - 4px) / var(--cols), 2.25rem)'
-    height: '{components.cell-editor.width}'
+    width: '{components.cell.width}'
+    height: '{components.cell.width}'
     rounded: '{rounded.none}'
   button:
     padding: '0.35rem 0.75rem'
@@ -180,7 +180,8 @@ colour alone.
 A single centred column, and nothing else. `body` is plain block layout — the page is
 top-anchored rather than centred in the viewport, because a stack whose height changes
 with the grid moved the puzzle up and down the screen every time you switched screens
-or resized it. `.page` is `max-width: var(--measure)` (40rem) with `margin-inline:
+or resized it. `.page` is `max-width: var(--measure)` (52rem — the 800px grid ceiling
+plus the page's two 1rem gutters, so the content box is exactly 800px) with `margin-inline:
 auto`, `grid-template-columns: minmax(0, 1fr)`, and `2.5rem 1rem` padding. There is no
 sidebar, no shell, and no header chrome beyond the title and tagline.
 
@@ -198,19 +199,24 @@ separates title from navigation, `lg` separates a control group from its grid, a
 is the one big break between chrome and work.
 
 **Responsive behaviour is the fluid cell.** Both grids sit inside a `.grid-frame` —
-`container-type: inline-size`, `width: 100%`, `overflow-x: auto` — and size their cell
-from the space that frame offers:
+`container-type: inline-size`, `width: 100%`, `max-width: var(--grid-max)`,
+`overflow-x: auto` — and size their cell from the space that frame offers:
 
 ```css
---cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), 3rem);
+--cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), var(--cell-max));
 ```
 
-The ceiling is the incumbent fixed size (3rem play, 2.25rem editor), so nothing changes
-on a desktop; the 4px is the grid's own 2px frame on each side. Digit size and the
-violation marker are both derived from `--cell`, so a cell keeps its proportions as it
-narrows. **The only width-based branch in the codebase is this `clamp`** — there is
-still no width media query anywhere, and `prefers-color-scheme` is still the only
-`@media` rule.
+The rule is now **identical in both grids, to the character**: a cage should be the size
+while you draw it that it will be while you play it. The 4px is the grid's own 2px frame
+on each side. Digit size and the violation marker are both derived from `--cell`, so a
+cell keeps its proportions as it narrows.
+
+There are **two width-based branches in the codebase and no more**: this `clamp`, and the
+frame's `max-width`. The cap sits on the frame rather than as a second `min()` term in the
+clamp because `100cqi` _is_ the frame's inline size — capping the frame makes the ceiling
+bind through arithmetic that is already there, and keeps the thing that scrolls the same
+as the thing that centres. There is still no width media query anywhere, and
+`prefers-color-scheme` is still the only `@media` rule.
 
 ### Named Rules
 
@@ -225,11 +231,28 @@ phone with no scrolling at all — the scroll container is the safety net for na
 viewports and heavy zoom, not the normal case. Audit test: at any viewport from 320px
 up, `document.documentElement.scrollWidth` equals `window.innerWidth`.
 
+**The Grid Ceiling Rule.** A cell never exceeds `--cell-max` (5rem / 80px) and a grid's
+border box never exceeds `--grid-max` (50rem / 800px). Whichever binds first wins, and
+the grid's own 2px frame counts inside the 800 — so the full 80px cell is reachable up
+to **nine** columns, ten columns gives 79.6px, and from there up it is the grid cap that
+decides and the cell shrinks to suit (66.3px at the 12-column maximum). That is the only
+way both limits can hold at once; it is not an off-by-four to be "fixed" by raising the
+cap to 804px. Both ceilings are declared in rem so the grid scales under text zoom with
+the rest of the system instead of stranding at a fixed pixel size. Audit test: at a wide
+viewport no cell's bounding box exceeds 80px and no grid's exceeds 800px.
+
 **Known limit, recorded:** the editor grid carries `touch-action: none` so that a touch
 drag draws a cage instead of scrolling. When the frame does scroll — below roughly a
 370px viewport at 12 columns — a touch user cannot pan it by dragging on the grid
 itself. This is the residue of the drag-versus-pan conflict, deliberately pushed below
 every real phone width rather than solved.
+
+**Known limit, recorded:** there is no way to take a cell back out of a cage. Before
+the editor opened on a blank grid this could not arise — every cell was always in
+some cage, so erasing meant nothing — but now a misdrawn cage can only be fixed by
+drawing over it or by re-applying the size to start again. An erase gesture was
+considered and deferred: click-to-unassign collides with click-to-make-a-cage-of-one,
+and a Draw/Erase toggle would add the screen's first mode.
 
 ## Elevation & Depth
 
@@ -279,7 +302,7 @@ Everything below is written against a single character line: **precise and unhur
 The one thing in Tectoniq that is genuinely designed, and the component every other
 decision serves.
 
-- **Shape:** a square that fills its column up to 3rem (2.25rem in the editor) and never falls below 1.75rem — see The Cell Floor Rule. Zero radius, contents centred with `place-items: center`.
+- **Shape:** a square that fills its column up to 5rem (80px), the same in both grids, and never falls below 1.75rem — see The Cell Floor Rule and The Grid Ceiling Rule. Zero radius, contents centred with `place-items: center`.
 - **Borders:** 1px `--rule` on all sides by default; each side independently promoted to 2px `--cage-rule` when `cageEdges()` says a cage boundary falls there.
 - **Empty:** an empty cell contains no child nodes at all — deliberately, so it genuinely matches `:not(:empty)` logic and carries no stray whitespace node.
 - **Player entry:** Entry Blue, weight 400, `tabular-nums`.
@@ -292,6 +315,8 @@ decision serves.
 - **Why a corner mark and not a red digit:** a recoloured digit reads as a styling choice and says nothing about which cell to look at. The marker states "this digit is part of a broken rule".
 - **Placement rule:** it appears on **both** ends of a conflict, givens included, because seeing what your digit collided with is the entire point.
 - **Semantics:** `role="status"`, `aria-label="breaks a rule"`.
+- **Reused in the editor** to mean "this cell is in no cage", so that _named by a problem_ looks the same on both screens. Two differences, both deliberate: it is `aria-hidden` there, because the result line already states how many cells are left and a screenful of live regions would talk over it; and it carries `pointer-events: none`, so it can never become a target for a cage drag.
+- **Not shown when every cell is undrawn.** Marking all 144 cells of an untouched 12×12 applies the danger colour to something that has not gone wrong — the same argument as The Red Means Broken Rule. A grid nobody has started is reported in words alone.
 
 ### Buttons — provisional
 
@@ -321,11 +346,17 @@ dropped colour, and a screen reader. The inactive item at 0.7 opacity computes t
 6.11:1 against paper in light and 7.73:1 in dark.
 
 This is a hierarchy treatment, not a designed control. The editor's presets, size
-fields and Apply button are still native browser chrome and still provisional.
+fields, Apply button and Check the layout button are still native browser chrome and
+still provisional. The check button is deliberately not given a primary treatment: a
+filled control there would out-contrast the grid, which inverts the whole system.
 
 ### Messages
 
 - **Refusal** (editor size validation): Violation Red, `0.9rem`, `role="alert"`, no icon, no border, no background panel. A sentence, in red, where the problem is.
+- **Check result — problem** (editor layout check): Violation Red, `0.9rem`, same bare treatment. It names what is missing and what to do about it: "7 cells are not in a cage yet. Drag across them to draw one."
+- **Check result — pass**: the same region in **Ink, never green**. This is the rule most likely to be "fixed" by someone later, so the reason is written down: exactly two chromatic colours exist in this system and neither is a success colour, a third would break The Both-Themes Rule's audit, and celebrating a result contradicts the North Star's _nothing is celebrated_. The pass and problem states also differ in wording, so the message is legible with no colour at all.
+- **The check result region is rendered always and left empty** until a check runs, unlike Refusal, which is `v-if`'d. A polite `role="status"` must be in the DOM before its content changes to be announced; `role="alert"` is announced on insertion. Do not harmonise the two — they are different roles with different rules. An empty paragraph generates no line box, so nothing shifts.
+- **Wording discipline.** The passing sentence says the layout is _complete_, never that the puzzle is _valid_ or _solvable_. Structural completeness is not solvability: a layout can pass every check here and still have no solution. A unit test asserts the copy contains neither "solv" nor "valid" so this cannot quietly erode.
 
 ## Do's and Don'ts
 
@@ -339,6 +370,7 @@ fields and Apply button are still native browser chrome and still provisional.
 - **Do** meet WCAG 2.2 AA — it is a binding product requirement (PRODUCT.md), not an aspiration. Every text colour currently in the system clears it: Ink 16.17:1 / 14.25:1, Entry Blue 5.17:1 / 8.30:1, Violation Red 5.81:1 / 6.17:1 against paper.
 - **Do** keep the grid the only thing on screen with real presence — if a control out-contrasts it, the control is wrong, not the grid.
 - **Do** take spacing from `--space-*`, and let the size of a gap say what belongs together.
+- **Do** take a grid's limits from `--cell-floor`, `--cell-max` and `--grid-max` rather than typing a number into a `clamp`.
 - **Do** derive anything sized against a cell — the digit, the marker — from `--cell`, so it holds its proportion as the grid narrows.
 
 ### Don't:
@@ -347,6 +379,7 @@ fields and Apply button are still native browser chrome and still provisional.
 - **Don't** read "Newsprint" as texture. No paper grain, no sepia, no halftone, no torn edges, no nostalgic serifs, no faux-print colour cast. The metaphor is about printed-vs-written logic; the app must look current.
 - **Don't** use Entry Blue on anything that is not a player-entered digit or the player's selection ring.
 - **Don't** use Violation Red decoratively, as a brand colour, or on anything that is not actually wrong.
+- **Don't** introduce a success colour. A passing check is stated in Ink and in its wording; green would be a third chromatic colour in a system that has exactly two, and it would celebrate a result.
 - **Don't** thicken a border for emphasis — 2px means "cage boundary" and nothing else.
 - **Don't** cite the current buttons and inputs as the system's control style. They are native browser defaults, recorded as provisional.
 - **Don't** assume `--rule` (#c9c5bd, 1.65:1 against paper) satisfies the 3:1 non-text contrast threshold. It does not. The cage boundary at 16:1 is what carries the structural meaning; if the hairline ever becomes load-bearing on its own, it needs a new value.

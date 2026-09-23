@@ -2,15 +2,16 @@
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
 import {
   DEFAULT_GRID_SIZE,
+  emptyLayout,
   MAX_GRID_SIZE,
   MIN_GRID_SIZE,
-  oneCellPerCage,
   SIZE_PRESETS,
   sizeProblem,
   withCells,
 } from '@/domain/cages'
-import { cageEdges } from '@/domain/grid'
-import type { Puzzle } from '@/domain/types'
+import { cageEdges, cellCount } from '@/domain/grid'
+import { MAX_CAGE_SIZE, type Puzzle } from '@/domain/types'
+import { validatePuzzle, type PuzzleProblem } from '@/domain/validate'
 
 const props = defineProps<{ initialPuzzle?: Puzzle | undefined }>()
 
@@ -23,7 +24,7 @@ const props = defineProps<{ initialPuzzle?: Puzzle | undefined }>()
 const emit = defineEmits<{ change: [Puzzle] }>()
 
 const puzzle = shallowRef<Puzzle>(
-  props.initialPuzzle ?? oneCellPerCage(DEFAULT_GRID_SIZE, DEFAULT_GRID_SIZE),
+  props.initialPuzzle ?? emptyLayout(DEFAULT_GRID_SIZE, DEFAULT_GRID_SIZE),
 )
 
 // `v-model` on a number input casts for us, and hands back '' for a blank or
@@ -38,8 +39,79 @@ const cells = computed(() =>
   puzzle.value.cages.map((_, cell) => ({ cell, edges: cageEdges(puzzle.value, cell) })),
 )
 
+/**
+ * The verdict from the last check, or `null` if nobody has asked for one. Holding
+ * the domain's own problems rather than a rendered sentence keeps the message and
+ * the cell markers two views of a single fact.
+ */
+const result = ref<PuzzleProblem[] | null>(null)
+
+function check() {
+  result.value = validatePuzzle(puzzle.value)
+}
+
+/** The cells of the first `cell-without-cage` problem, or null if there is none. */
+function cellsWithoutCage(problems: readonly PuzzleProblem[] | null): readonly number[] | null {
+  for (const problem of problems ?? []) {
+    if (problem.kind === 'cell-without-cage') return problem.cells
+  }
+  return null
+}
+
+const hasProblems = computed(() => (result.value?.length ?? 0) > 0)
+
+/**
+ * The cells to mark — none of them when the whole grid is blank.
+ *
+ * A grid nobody has started is not a mistake to point at, and painting every cell
+ * of a 12×12 red would be noise rather than help; the message says it on its own.
+ * Holes in a mostly-drawn grid are the opposite case, and finding them by eye is
+ * exactly the chore worth removing.
+ */
+const undrawnCells = computed(() => {
+  const missing = cellsWithoutCage(result.value)
+  if (missing === null || missing.length === cellCount(puzzle.value)) return new Set<number>()
+  return new Set(missing)
+})
+
+/**
+ * What the check found, in words.
+ *
+ * The passing sentence says *complete*, never *valid* or *solvable*. A layout can
+ * pass every structural check and still have no solution — `validate.test.ts` keeps
+ * a `TWO_BY_TWO` fixture that does exactly that — and the editor places no givens
+ * besides, so nothing here may imply the puzzle has been checked for playability.
+ */
+const message = computed(() => {
+  const problems = result.value
+  if (problems === null) return ''
+
+  const missing = cellsWithoutCage(problems)
+  if (missing !== null) {
+    if (missing.length === cellCount(puzzle.value)) {
+      return 'Nothing is drawn yet. Drag across cells to draw a cage.'
+    }
+    const subject = missing.length === 1 ? '1 cell is' : `${missing.length} cells are`
+    return `${subject} not in a cage yet. Drag across them to draw one.`
+  }
+  // Unreachable through the UI — `withCells` caps a cage at five and splits any
+  // remainder, and a refused size never reaches the grid. Stated generically rather
+  // than in five bespoke sentences, because saying nothing would let a future
+  // regression show the passing message over a broken layout.
+  if (problems.length > 0) {
+    return 'The layout is broken in a way the editor should not allow. Choose a size to start over.'
+  }
+  return `The layout is complete. Every cell is in a cage of 1 to ${MAX_CAGE_SIZE} connected cells.`
+})
+
 function commit(next: Puzzle) {
   puzzle.value = next
+  // A verdict describes the layout it was computed from, so it cannot outlive one.
+  // Clearing here rather than in each caller is what makes a stale verdict
+  // impossible: every path that changes the layout — a drag, a preset, Apply —
+  // comes through `commit`. A refused size does not, and rightly leaves a standing
+  // verdict alone, because the layout did not change.
+  result.value = null
   emit('change', next)
 }
 
@@ -48,7 +120,7 @@ function resize(width: number, height: number) {
   refusal.value = null
   widthField.value = width
   heightField.value = height
-  commit(oneCellPerCage(width, height))
+  commit(emptyLayout(width, height))
 }
 
 function applySize() {
@@ -171,27 +243,53 @@ onBeforeUnmount(endDrag)
       <p v-if="refusal" class="refusal" data-testid="size-message" role="alert">{{ refusal }}</p>
     </div>
 
-    <!-- The frame is the query container for the cell size; see PuzzleGrid. -->
-    <div class="grid-frame">
-      <div
-        class="grid"
-        data-testid="editor-grid"
-        :style="{ '--cols': puzzle.width }"
-        :data-width="puzzle.width"
-        role="grid"
-        :aria-label="`${puzzle.width} by ${puzzle.height} cage layout`"
-        @pointerdown="onPointerDown"
-        @pointermove="onPointerMove"
-      >
+    <div class="work">
+      <!-- The frame is the query container for the cell size; see PuzzleGrid. -->
+      <div class="grid-frame">
         <div
-          v-for="entry in cells"
-          :key="entry.cell"
-          class="cell"
-          :class="entry.edges"
-          data-testid="cell"
-          :data-cell="entry.cell"
-          role="gridcell"
-        />
+          class="grid"
+          data-testid="editor-grid"
+          :style="{ '--cols': puzzle.width }"
+          :data-width="puzzle.width"
+          role="grid"
+          :aria-label="`${puzzle.width} by ${puzzle.height} cage layout`"
+          @pointerdown="onPointerDown"
+          @pointermove="onPointerMove"
+        >
+          <div
+            v-for="entry in cells"
+            :key="entry.cell"
+            class="cell"
+            :class="entry.edges"
+            data-testid="cell"
+            :data-cell="entry.cell"
+            role="gridcell"
+          >
+            <!--
+              Hidden from assistive tech on purpose, unlike the play grid's marker:
+              the result line below already states how many cells are left, and a
+              screenful of live regions would talk over it.
+            -->
+            <span
+              v-if="undrawnCells.has(entry.cell)"
+              class="marker"
+              data-testid="unassigned-marker"
+              aria-hidden="true"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="validation">
+        <button type="button" data-testid="check-layout" @click="check">Check the layout</button>
+        <p
+          class="result"
+          :class="{ bad: hasProblems }"
+          data-testid="validation-message"
+          role="status"
+        >
+          {{ message }}
+        </p>
       </div>
     </div>
   </section>
@@ -247,16 +345,19 @@ button {
   font-size: 0.9rem;
 }
 
+/* Capped at `--grid-max`, same as the play grid; see PuzzleGrid for why the cap
+   sits on the frame rather than in the clamp. */
 .grid-frame {
   container-type: inline-size;
   width: 100%;
+  max-width: var(--grid-max);
   overflow-x: auto;
 }
 
-/* Same fluid cell as the play grid, drawn smaller: a 12-wide layout has to stay
-   drawable, so the editor's ceiling is lower while the floor is shared. */
+/* The same fluid cell as the play grid, to the character: a cage should be the
+   size while you draw it that it will be while you play it. */
 .grid {
-  --cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), 2.25rem);
+  --cell: clamp(var(--cell-floor), (100cqi - 4px) / var(--cols), var(--cell-max));
 
   display: grid;
   grid-template-columns: repeat(var(--cols), var(--cell));
@@ -270,8 +371,62 @@ button {
   user-select: none;
 }
 
+/* The grid and what it says about itself, held together by the step the system
+   reserves for exactly that — the same pairing the play screen uses. */
+.work {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--space-sm);
+}
+
+.validation {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-xs);
+}
+
+/*
+ * One region, two states. A problem is Violation Red; a pass is Ink, never green —
+ * this system has exactly two chromatic colours and neither of them is a success
+ * colour. The two states differ in wording as well, so the message reads correctly
+ * in greyscale and with no colour at all.
+ *
+ * Rendered always and empty until a check runs, unlike `.refusal` above. A polite
+ * live region has to exist in the DOM before its content changes to be announced;
+ * `role="alert"` is announced on insertion, which is why the refusal may be `v-if`'d
+ * and this may not. An empty paragraph generates no line box, so nothing shifts.
+ */
+.result {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.result.bad {
+  color: var(--bad);
+}
+
 .cell {
+  position: relative;
   border: 1px solid var(--rule);
+}
+
+/* The play grid's corner triangle, reused so that "this cell is named by a problem"
+   looks the same on both screens. Sized from `--cell` for the same reason. */
+.marker {
+  --size: max(0.5rem, calc(var(--cell) / 4.3));
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: var(--size) solid var(--bad);
+  border-left: var(--size) solid transparent;
+  /* The drag hit-test would resolve through this span anyway, since `closest`
+     walks up — but a marker has no business being a drag target. */
+  pointer-events: none;
 }
 
 /* Cage outlines sit on top of the light interior rules, as on the play grid. */

@@ -27,8 +27,18 @@
    */
   --cell-floor: 1.75rem;
 
-  /* The single column's measure: a 12-wide play grid plus its gutters. */
-  --measure: 40rem;
+  /*
+   * The ceilings the floor answers to. A cell fills its column and stops at 5rem
+   * (80px); a grid's border box stops at 50rem (800px). Whichever binds first
+   * wins, and the grid's own 2px frame counts inside the 800 — so the full 80px
+   * cell is reachable up to nine columns, and from ten up the grid cap decides
+   * and the cell shrinks below 80px. Both limits hold at once only that way.
+   */
+  --cell-max: 5rem;
+  --grid-max: 50rem;
+
+  /* The single column's measure: the 800px grid ceiling plus the page's 1rem gutters. */
+  --measure: 52rem;
 
   color-scheme: light dark;
   font-family:

@@ -66,9 +66,16 @@ export function adjacent(puzzle: Puzzle, index: number): number[] {
   return step(puzzle, coordOf(puzzle, index), ADJACENT_OFFSETS)
 }
 
-/** Every distinct cage id present in the grid, ascending. */
+/**
+ * Every distinct cage id present in the grid, ascending.
+ *
+ * Cells nobody has drawn on are not a cage and are left out. That single filter is
+ * what keeps every caller below honest: `validatePuzzle`'s cage loop,
+ * `findViolations`' two, and `withCells`' regroup all iterate this, so none of them
+ * can mistake the undrawn cells for a cage of their own.
+ */
 export function cageIds(puzzle: Puzzle): CageId[] {
-  return [...new Set(puzzle.cages)].sort((a, b) => a - b)
+  return [...new Set(puzzle.cages)].filter((id) => id !== null).sort((a, b) => a - b)
 }
 
 /** Cell indices belonging to `cageId`, ascending. */
@@ -85,8 +92,12 @@ export function cageSize(puzzle: Puzzle, cageId: CageId): number {
   return cellsInCage(puzzle, cageId).length
 }
 
-/** The cage containing `index`, or undefined if the index is out of range. */
-export function cageAt(puzzle: Puzzle, index: number): CageId | undefined {
+/**
+ * The cage containing `index`: `null` if nobody has drawn on that cell, and
+ * `undefined` if the index is out of range. The two are different answers and
+ * callers that care should say which they mean.
+ */
+export function cageAt(puzzle: Puzzle, index: number): CageId | null | undefined {
   return puzzle.cages[index]
 }
 
@@ -128,6 +139,12 @@ export type CageEdges = Readonly<
 /**
  * A boundary is any side where the neighbour sits in a different cage, or where the
  * grid ends. Deriving it per cell keeps this independent of cage shape.
+ *
+ * Undrawn cells fall out of the same comparison rather than needing a case of their
+ * own: two undrawn neighbours are both `null` and so share no boundary, while an
+ * undrawn cell against a real cage differs from it and draws that cage's edge. The
+ * `inBounds` guard is load-bearing for this — it returns before `cageAt` is reached,
+ * so an undrawn cell is never compared against the `undefined` of a missing one.
  */
 export function cageEdges(puzzle: Puzzle, cell: number): CageEdges {
   const { row, col } = coordOf(puzzle, cell)

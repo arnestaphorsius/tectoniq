@@ -33,8 +33,13 @@ export interface Coord {
 export interface Puzzle {
   readonly width: number
   readonly height: number
-  /** Which cage each cell belongs to. */
-  readonly cages: readonly CageId[]
+  /**
+   * Which cage each cell belongs to, or `null` where nobody has drawn on it yet.
+   *
+   * A layout holding nulls is a legitimate thing to draw and render — it is simply
+   * not a puzzle anyone can play, which is what `validatePuzzle` is for.
+   */
+  readonly cages: readonly (CageId | null)[]
   /** Pre-filled clues; `null` where the player must supply a digit. */
   readonly givens: readonly (Digit | null)[]
 }
