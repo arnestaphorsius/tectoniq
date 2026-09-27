@@ -9,6 +9,7 @@ colors:
   given: '#1a1d23'
   entry: '#2f6f9f'
   bad: '#b4342a'
+  control-rule: '#8a867e'
 typography:
   display:
     fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
@@ -56,12 +57,14 @@ components:
     height: '{components.cell.width}'
     rounded: '{rounded.none}'
   button:
-    padding: '0.35rem 0.75rem'
+    height: '2.5rem'
+    padding: '0 1rem'
     typography: '{typography.body}'
     rounded: '{rounded.none}'
   input:
-    width: '4rem'
-    padding: '0.25rem'
+    width: '3rem'
+    height: '2.5rem'
+    padding: '0 0.5rem'
     typography: '{typography.body}'
     rounded: '{rounded.none}'
 ---
@@ -123,6 +126,8 @@ colours exist, and both of them are load-bearing signals rather than brand.
 - **Cage Rule** (identical in value to Ink): the 2px boundary of a cage and the outer frame of a grid. It is a _separate token_ from Ink on purpose — it names a structural role, so a future system can change how a cage edge looks without touching body text.
 - **Given** (identical in value to Ink): digits the puzzle printed. Separate from Ink for the same reason.
 - **Hairline** (#c9c5bd light / #3a3f47 dark, `--rule`): the 1px divider between adjacent cells inside a single cage. Deliberately faint — it must never compete with a cage boundary.
+- **Control Rule** (#8a867e light / #6f747c dark, `--control-rule`): the 1px edge of a button or field. 3.47:1 against paper in light and 3.78:1 in dark, so it clears the 3:1 non-text minimum the Hairline does not, while staying far below the grid's 16:1 ink.
+- **Wash** (`--wash`, `color-mix` of Ink into Paper at 7% light / 9% dark): a neutral tint, never a hue. It fills a pressed control and the cage being drawn during a drag, and nothing else.
 
 ### Named Rules
 
@@ -318,20 +323,35 @@ decision serves.
 - **Reused in the editor** to mean "this cell is in no cage", so that _named by a problem_ looks the same on both screens. Two differences, both deliberate: it is `aria-hidden` there, because the result line already states how many cells are left and a screenful of live regions would talk over it; and it carries `pointer-events: none`, so it can never become a target for a cage drag.
 - **Not shown when every cell is undrawn.** Marking all 144 cells of an untouched 12×12 applies the danger colour to something that has not gone wrong — the same argument as The Red Means Broken Rule. A grid nobody has started is reported in words alone.
 
-### Buttons — provisional
+### Controls
 
-**Not yet designed.** The only CSS applied is `padding: 0.35rem 0.75rem`,
-`font: inherit`, and `cursor: pointer`; everything else is native browser chrome.
-This is recorded as unfinished, not as a decision, so no future work should cite it as
-"the button style". A designed control should come from the line-weight language above
-rather than from a component library, and this is the most likely place for the system
-to earn the "modern and fresh" the North Star demands.
+One style, `.control` in `src/style.css`, shared by every button and field. It is
+built from the grid's own language rather than from a component library: a square,
+a 1px `--control-rule` stroke, a Paper fill, Ink text, no radius, no shadow.
 
-### Inputs — provisional
+- **Size:** 2.5rem (40px) tall, clearing the 24px WCAG 2.2 target minimum with room.
+- **Hover:** the stroke goes to full Ink. **Active:** the Wash fills it. **Focus:** a 2px Ink outline at 2px offset — the same ring as the screen switcher.
+- **Refused:** a field whose value was refused takes a `--bad` stroke and `aria-invalid`, and is tied to the refusal sentence by `aria-describedby`. That is Violation Red on an input the app actually refused, which The Red Means Broken Rule permits.
+- **Fields** are centred, `tabular-nums`, and have no spinner — the arrow keys still step them, `inputmode="numeric"` and `min`/`max` are kept, and Enter applies them.
+- **Never filled.** No control gets a primary treatment: a filled button would out-contrast the grid, which inverts the whole system.
 
-**Not yet designed.** `width: 4rem`, `padding: 0.25rem`, `font: inherit`, native
-`<input type="number">` otherwise. The size fields carry `inputmode="numeric"` and
-`min`/`max`, which is behaviour worth preserving through any restyle.
+**Presets** are joined into one segmented group (shared 1px edges), because three
+sizes are one choice. The size the grid is currently at is marked the way the
+screen switcher marks the current screen — weight 600, an Ink stroke, and a 2px Ink
+rule along the bottom drawn inside the button — plus `aria-current`. Presets and
+the custom fields share one line where there is room, and wrap to two on a phone.
+
+### Drawing feedback
+
+The editor grid carries a crosshair cursor, and while a drag is in progress the
+cage it is drawing is filled with the Wash. The tint is read back from the committed
+layout, so a cell `withCells` refused is never shown as taken, and it clears the
+moment the pointer is released. No transition: it is precise and unhurried, like
+everything else.
+
+A blank editor that has not been checked says, under the grid, "Drag across cells to
+draw a cage." — the one moment the screen has to explain itself, because an empty
+grid gives no clue that it wants dragging.
 
 ### Screen Switcher
 
@@ -345,10 +365,8 @@ the same argument as the Printed-Not-Painted Rule: it has to survive greyscale, 
 dropped colour, and a screen reader. The inactive item at 0.7 opacity computes to
 6.11:1 against paper in light and 7.73:1 in dark.
 
-This is a hierarchy treatment, not a designed control. The editor's presets, size
-fields, Apply button and Check the layout button are still native browser chrome and
-still provisional. The check button is deliberately not given a primary treatment: a
-filled control there would out-contrast the grid, which inverts the whole system.
+This is a hierarchy treatment, not a control: navigation stays text so it never
+competes with the editor's Controls below it.
 
 ### Messages
 
@@ -381,7 +399,7 @@ filled control there would out-contrast the grid, which inverts the whole system
 - **Don't** use Violation Red decoratively, as a brand colour, or on anything that is not actually wrong.
 - **Don't** introduce a success colour. A passing check is stated in Ink and in its wording; green would be a third chromatic colour in a system that has exactly two, and it would celebrate a result.
 - **Don't** thicken a border for emphasis — 2px means "cage boundary" and nothing else.
-- **Don't** cite the current buttons and inputs as the system's control style. They are native browser defaults, recorded as provisional.
+- **Don't** style a button or field outside `.control`, and don't give one a fill. A second control style is drift; a filled one out-contrasts the grid.
 - **Don't** assume `--rule` (#c9c5bd, 1.65:1 against paper) satisfies the 3:1 non-text contrast threshold. It does not. The cage boundary at 16:1 is what carries the structural meaning; if the hairline ever becomes load-bearing on its own, it needs a new value.
 - **Don't** add a second font family or load a web font without a decision that says why one family stopped being enough.
 - **Don't** let a grid widen the page. A grid that cannot fit scrolls inside its own frame; the document's scroll width must always equal the viewport's.

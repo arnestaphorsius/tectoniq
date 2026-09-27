@@ -60,6 +60,37 @@ function cellsWithoutCage(problems: readonly PuzzleProblem[] | null): readonly n
 
 const hasProblems = computed(() => (result.value?.length ?? 0) > 0)
 
+/** The preset the grid is currently at, if it is square and one of them. */
+const currentPreset = computed(() =>
+  puzzle.value.width === puzzle.value.height ? puzzle.value.width : null,
+)
+
+/**
+ * Nothing drawn and nothing asked yet: the one moment the screen has to say how it
+ * works, because a blank grid on its own gives no clue that it wants dragging.
+ */
+const untouched = computed(
+  () => result.value === null && puzzle.value.cages.every((cage) => cage === null),
+)
+
+/**
+ * The cell the current drag started on, or `null` when nobody is dragging. The
+ * start cell is always in the cage being drawn, so it is the one stable handle on
+ * that cage: `withCells` renumbers cages on every move, so a cage id held from
+ * pointer-down would come to name some other cage — typically what is left of one
+ * the drag took a cell from.
+ */
+const dragStart = ref<number | null>(null)
+
+/**
+ * The cage the current drag is drawing, so it can be tinted while it grows. Read
+ * back from the committed layout rather than from `path`, so a cell `withCells`
+ * refused is never shown as taken.
+ */
+const drawing = computed(() =>
+  dragStart.value === null ? null : (puzzle.value.cages[dragStart.value] ?? null),
+)
+
 /**
  * The cells to mark — none of them when the whole grid is blank.
  *
@@ -157,6 +188,7 @@ function onPointerDown(event: PointerEvent) {
   base = puzzle.value
   path = [cell]
   commit(withCells(base, path))
+  dragStart.value = cell
   document.addEventListener('pointerup', endDrag)
   document.addEventListener('pointercancel', endDrag)
 }
@@ -173,6 +205,7 @@ function onPointerMove(event: PointerEvent) {
 function endDrag() {
   base = null
   path = []
+  dragStart.value = null
   document.removeEventListener('pointerup', endDrag)
   document.removeEventListener('pointercancel', endDrag)
 }
@@ -201,11 +234,14 @@ onBeforeUnmount(endDrag)
 <template>
   <section class="editor" data-testid="puzzle-editor">
     <div class="sizing">
-      <div class="row">
+      <div class="presets" role="group" aria-label="Grid size">
         <button
           v-for="side in SIZE_PRESETS"
           :key="side"
           type="button"
+          class="control"
+          :class="{ current: currentPreset === side }"
+          :aria-current="currentPreset === side ? 'true' : undefined"
           data-testid="preset"
           :data-preset="side"
           @click="resize(side, side)"
@@ -214,33 +250,45 @@ onBeforeUnmount(endDrag)
         </button>
       </div>
 
-      <div class="row">
+      <div class="custom">
         <label>
           Width
           <input
             v-model="widthField"
+            class="control"
             data-testid="width"
             type="number"
             inputmode="numeric"
             :min="MIN_GRID_SIZE"
             :max="MAX_GRID_SIZE"
+            :aria-invalid="refusal ? 'true' : undefined"
+            :aria-describedby="refusal ? 'size-refusal' : undefined"
+            @keydown.enter="applySize"
           />
         </label>
         <label>
           Height
           <input
             v-model="heightField"
+            class="control"
             data-testid="height"
             type="number"
             inputmode="numeric"
             :min="MIN_GRID_SIZE"
             :max="MAX_GRID_SIZE"
+            :aria-invalid="refusal ? 'true' : undefined"
+            :aria-describedby="refusal ? 'size-refusal' : undefined"
+            @keydown.enter="applySize"
           />
         </label>
-        <button type="button" data-testid="apply-size" @click="applySize">Apply</button>
+        <button type="button" class="control" data-testid="apply-size" @click="applySize">
+          Apply
+        </button>
       </div>
 
-      <p v-if="refusal" class="refusal" data-testid="size-message" role="alert">{{ refusal }}</p>
+      <p v-if="refusal" id="size-refusal" class="refusal" data-testid="size-message" role="alert">
+        {{ refusal }}
+      </p>
     </div>
 
     <div class="work">
@@ -260,7 +308,10 @@ onBeforeUnmount(endDrag)
             v-for="entry in cells"
             :key="entry.cell"
             class="cell"
-            :class="entry.edges"
+            :class="[
+              entry.edges,
+              { drawing: drawing !== null && puzzle.cages[entry.cell] === drawing },
+            ]"
             data-testid="cell"
             :data-cell="entry.cell"
             role="gridcell"
@@ -281,7 +332,12 @@ onBeforeUnmount(endDrag)
       </div>
 
       <div class="validation">
-        <button type="button" data-testid="check-layout" @click="check">Check the layout</button>
+        <p v-if="untouched" class="hint" data-testid="editor-hint">
+          Drag across cells to draw a cage.
+        </p>
+        <button type="button" class="control" data-testid="check-layout" @click="check">
+          Check the layout
+        </button>
         <p
           class="result"
           :class="{ bad: hasProblems }"
@@ -304,45 +360,87 @@ onBeforeUnmount(endDrag)
   gap: var(--space-lg);
 }
 
-/* Presets and the custom fields are two ways to do one thing, so they read as
-   one group: bound tightly to each other, and set well apart from the grid. */
+/* Presets and the custom fields are two ways to do one thing, so they sit on one
+   line where there is room for it, and wrap to two where there is not. The
+   refusal spans the row beneath, under the fields it is about. */
 .sizing {
-  display: grid;
-  justify-items: center;
-  gap: var(--space-xs);
-}
-
-.row {
   display: flex;
-  align-items: center;
-  gap: var(--space-xs);
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
+  gap: var(--space-sm) var(--space-lg);
+}
+
+/* Joined, so three presets read as one choice rather than three buttons. The
+   shared edge is drawn once; a hovered or focused preset lifts over its
+   neighbours so its whole border shows. */
+.presets {
+  display: flex;
+}
+
+.presets .control {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+
+.presets .control + .control {
+  margin-left: -1px;
+}
+
+.presets .control:hover,
+.presets .control:focus-visible {
+  z-index: 1;
+}
+
+/* The current size, marked the way the screen switcher marks the current screen:
+   weight 600 and a 2px ink rule along the bottom, drawn inside the button so the
+   group's geometry does not move. */
+.presets .control.current {
+  font-weight: 600;
+  border-color: var(--ink);
+  z-index: 1;
+}
+
+.presets .control.current::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--ink);
+}
+
+.custom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 label {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-xs);
   font-size: 0.9rem;
 }
 
-input {
-  width: 4rem;
-  padding: var(--space-2xs);
-  font: inherit;
-}
-
-button {
-  padding: 0.35rem var(--space-sm);
-  font: inherit;
-  cursor: pointer;
+/* The label is set small; the digit it labels is not. */
+input.control {
+  width: 3rem;
+  font-size: 1rem;
 }
 
 .refusal {
+  flex-basis: 100%;
   margin: 0;
   color: var(--bad);
   font-size: 0.9rem;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
 }
 
 /* Capped at `--grid-max`, same as the play grid; see PuzzleGrid for why the cap
@@ -368,6 +466,7 @@ button {
   background: var(--paper);
   /* Without this a touch drag scrolls the page instead of drawing a cage. */
   touch-action: none;
+  cursor: crosshair;
   user-select: none;
 }
 
@@ -401,6 +500,8 @@ button {
 .result {
   margin: 0;
   font-size: 0.9rem;
+  text-align: center;
+  text-wrap: balance;
 }
 
 .result.bad {
@@ -410,6 +511,12 @@ button {
 .cell {
   position: relative;
   border: 1px solid var(--rule);
+}
+
+/* The cage under the pointer, tinted while it is drawn so the drag shows exactly
+   what it has collected. Ink, not a hue: nothing is wrong and nobody wrote a digit. */
+.cell.drawing {
+  background: var(--wash);
 }
 
 /* The play grid's corner triangle, reused so that "this cell is named by a problem"

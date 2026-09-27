@@ -8,6 +8,16 @@
   --bad: #b4342a;
 
   /*
+   * The edge of a control. `--rule` is 1.65:1 against paper, too faint to show
+   * where a button or field is; this clears the 3:1 non-text minimum (3.5:1)
+   * while staying well under the grid's 2px ink, so the grid still wins.
+   */
+  --control-rule: #8a867e;
+
+  /* A neutral tint for a pressed control and the cage being drawn. Ink, not a hue. */
+  --wash: color-mix(in srgb, var(--ink) 7%, var(--paper));
+
+  /*
    * The spacing rhythm. Six steps on a 0.25rem base, used so that distance says
    * what belongs together: 2xs..xs bind a group, xl separates the page's chrome
    * from the puzzle. Reach for the next step rather than inventing a value.
@@ -60,6 +70,8 @@
     --given: #e8e6e1;
     --entry: #7db8e0;
     --bad: #e8776d;
+    --control-rule: #6f747c;
+    --wash: color-mix(in srgb, var(--ink) 9%, var(--paper));
   }
 }
 
@@ -79,4 +91,51 @@ body {
   margin: 0;
   min-height: 100vh;
   background: var(--paper);
+}
+
+/*
+ * The one control style. Built from the grid's own language — a square, a 1px
+ * stroke, no fill, no radius, no shadow — so a control reads as part of the page
+ * rather than as browser chrome, and never out-contrasts the grid it serves.
+ */
+.control {
+  min-height: 2.5rem;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--control-rule);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.control:hover {
+  border-color: var(--ink);
+}
+
+.control:active {
+  background: var(--wash);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--bad);
+}
+
+input.control {
+  padding: 0 var(--space-xs);
+  cursor: text;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: textfield;
+}
+
+input.control::-webkit-inner-spin-button,
+input.control::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
 }
