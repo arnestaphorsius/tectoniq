@@ -70,6 +70,13 @@ async function press(wrapper: VueWrapper, path: readonly number[]) {
   for (const index of rest) await cell(wrapper, index).trigger('pointermove')
 }
 
+/** The cells tinted as part of the cage a drag is drawing, in index order. */
+function tinted(wrapper: VueWrapper): number[] {
+  return wrapper
+    .findAll('[data-testid="cell"].drawing')
+    .map((found) => Number(found.attributes('data-cell')))
+}
+
 async function applyCustom(wrapper: VueWrapper, width: string, height: string) {
   await wrapper.get('[data-testid="width"]').setValue(width)
   await wrapper.get('[data-testid="height"]').setValue(height)
@@ -293,6 +300,33 @@ describe('drawing', () => {
     await press(wrapper, [0, 1])
 
     expect(joined(wrapper, 0, 1)).toBe(true)
+  })
+
+  it('the cage being drawn is tinted, and nothing else is', async () => {
+    const wrapper = mountEditor()
+
+    await press(wrapper, [0, 1, 6])
+
+    expect(tinted(wrapper)).toEqual([0, 1, 6])
+  })
+
+  it('the tint stays on the new cage when it takes a cell from another', async () => {
+    const wrapper = mountEditor()
+    await drag(wrapper, [0, 1, 2, 3, 4])
+
+    // Taking cell 0 renumbers the cages; the tint must follow the drawn one, not
+    // land on what is left of the first row.
+    await press(wrapper, [5, 0])
+
+    expect(tinted(wrapper)).toEqual([0, 5])
+  })
+
+  it('the tint clears on release', async () => {
+    const wrapper = mountEditor()
+
+    await drag(wrapper, [0, 1])
+
+    expect(tinted(wrapper)).toEqual([])
   })
 })
 
