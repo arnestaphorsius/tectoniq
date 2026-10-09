@@ -1,7 +1,0 @@
-{
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "embedded",
-  "dolt_database": "tectoniq",
-  "project_id": "28b8bb39-010b-4b34-902e-d2db99bd5915"
-}
