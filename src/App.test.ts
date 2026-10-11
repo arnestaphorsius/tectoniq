@@ -247,7 +247,7 @@ describe('hint', () => {
   )
 
   /** Asks for a hint and steps it forward to `stage`. */
-  async function hintAt(wrapper: VueWrapper, stage: 1 | 2 | 3) {
+  async function hintAt(wrapper: VueWrapper, stage: 1 | 2) {
     for (let step = 0; step < stage; step += 1) await advance(wrapper).trigger('click')
   }
 
@@ -289,12 +289,11 @@ describe('hint', () => {
     expect(marked(wrapper, 'reason')).toEqual([])
     expect(wrapper.find('[data-testid="hint-strategy"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="hint-explanation"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="hint-digit"]').exists()).toBe(false)
     expect(advance(wrapper).text()).toBe('Why?')
     expect(wrapper.find('[data-testid="hint-close"]').exists()).toBe(true)
   })
 
-  it('stage 2 shows strategy and justifying cells', async () => {
+  it('stage 2 shows strategy and justifying cells, and swaps in Fill in', async () => {
     const wrapper = mountApp()
     await enter(wrapper, F_17)
 
@@ -305,28 +304,17 @@ describe('hint', () => {
     expect(marked(wrapper, 'target')).toEqual([15])
     expect(marked(wrapper, 'reason')).toEqual([17])
     expect(cell(wrapper, 17).classes()).not.toContain('hint-target')
-    expect(wrapper.find('[data-testid="hint-digit"]').exists()).toBe(false)
-    expect(advance(wrapper).text()).toBe('Show digit')
-  })
-
-  it('stage 3 swaps in Fill in and keeps the marks', async () => {
-    const wrapper = mountApp()
-    await enter(wrapper, F_17)
-
-    await hintAt(wrapper, 3)
-
-    expect(wrapper.get('[data-testid="hint-digit"]').text()).toContain('1')
+    // The digit is never shown ahead of filling it in.
+    expect(cell(wrapper, 15).text()).toBe('')
     expect(wrapper.find('[data-testid="hint-fill"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="hint-advance"]').exists()).toBe(false)
-    expect(marked(wrapper, 'target')).toEqual([15])
-    expect(marked(wrapper, 'reason')).toEqual([17])
   })
 
   it('Fill in enters the digit and discards the hint', async () => {
     const wrapper = mountApp()
     await enter(wrapper, F_17)
     const before = digits(wrapper)
-    await hintAt(wrapper, 3)
+    await hintAt(wrapper, 2)
     expect(digits(wrapper)).toEqual(before)
 
     await wrapper.get('[data-testid="hint-fill"]').trigger('click')
@@ -341,7 +329,7 @@ describe('hint', () => {
   })
 
   it('close discards at every stage', async () => {
-    for (const stage of [1, 2, 3] as const) {
+    for (const stage of [1, 2] as const) {
       const wrapper = mountApp()
       const before = digits(wrapper)
       await hintAt(wrapper, stage)
@@ -380,7 +368,6 @@ describe('hint', () => {
     expect(status(wrapper).text()).toMatch(/fix/i)
     expect(marked(wrapper, 'target')).toEqual([])
     expect(marked(wrapper, 'dead')).toEqual([])
-    expect(wrapper.find('[data-testid="hint-digit"]').exists()).toBe(false)
   })
 
   it('no hint is said plainly', async () => {
@@ -393,7 +380,6 @@ describe('hint', () => {
     expect(status(wrapper).text()).toMatch(/no hint found/i)
     expect(marked(wrapper, 'target')).toEqual([])
     expect(marked(wrapper, 'dead')).toEqual([])
-    expect(wrapper.find('[data-testid="hint-digit"]').exists()).toBe(false)
   })
 
   it('a dead end says so and highlights every dead cell', async () => {
@@ -433,8 +419,8 @@ describe('hint', () => {
     const wrapper = mountApp()
     expect(status(wrapper).attributes('role')).toBe('status')
 
-    await hintAt(wrapper, 3)
-    for (const id of ['hint-strategy', 'hint-explanation', 'hint-digit']) {
+    await hintAt(wrapper, 2)
+    for (const id of ['hint-strategy', 'hint-explanation']) {
       expect(status(wrapper).find(`[data-testid="${id}"]`).exists()).toBe(true)
     }
     await wrapper.get('[data-testid="hint-close"]').trigger('click')

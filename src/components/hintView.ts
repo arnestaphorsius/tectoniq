@@ -11,8 +11,8 @@ export interface HintMarks {
   readonly dead?: readonly number[]
 }
 
-/** How far into a hint the player has asked: where, then why, then which digit. */
-export type HintStage = 1 | 2 | 3
+/** How far into a hint the player has asked: where to look, then why. */
+export type HintStage = 1 | 2
 
 /**
  * The hint on screen: a result from the domain, plus how much of it is revealed.
@@ -23,7 +23,7 @@ export interface HintView {
   readonly stage: HintStage
 }
 
-/** What the grid should mark for `view`. The reasons appear from stage 2 on. */
+/** What the grid should mark for `view`. The reasons appear at stage 2. */
 export function marksFor(view: HintView | null): HintMarks {
   if (view === null) return {}
   const { result, stage } = view
@@ -31,6 +31,6 @@ export function marksFor(view: HintView | null): HintMarks {
   if (result.kind !== 'hint') return {}
   return {
     target: result.placement.cell,
-    reasons: stage >= 2 ? result.placement.justifying : [],
+    reasons: stage === 2 ? result.placement.justifying : [],
   }
 }

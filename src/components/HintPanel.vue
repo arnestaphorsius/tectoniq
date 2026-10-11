@@ -24,10 +24,7 @@ const hint = computed(() => (props.view?.result.kind === 'hint' ? props.view.res
 const stage = computed(() => props.view?.stage ?? 1)
 
 /** One button walks the stages, so its label says what pressing it reveals. */
-const advanceLabel = computed(() => {
-  if (hint.value === null) return 'Hint'
-  return stage.value === 1 ? 'Why?' : 'Show digit'
-})
+const advanceLabel = computed(() => (hint.value === null ? 'Hint' : 'Why?'))
 
 const MESSAGES = {
   violations: HINT_MESSAGES.violations,
@@ -50,10 +47,6 @@ const message = computed(() => {
         <template v-else>
           <p class="strategy" data-testid="hint-strategy">{{ hint.placement.strategy }}</p>
           <p data-testid="hint-explanation">{{ hint.placement.explanation }}</p>
-          <p v-if="stage === 3" data-testid="hint-digit">
-            It's a <strong class="digit">{{ hint.placement.digit }}</strong
-            >.
-          </p>
         </template>
       </template>
       <p v-else-if="message" data-testid="hint-message" :data-kind="message.kind">
@@ -63,7 +56,7 @@ const message = computed(() => {
 
     <div class="hint-actions">
       <button
-        v-if="hint && stage === 3"
+        v-if="hint && stage === 2"
         type="button"
         class="control"
         data-testid="hint-fill"
@@ -124,11 +117,6 @@ const message = computed(() => {
 
 .strategy {
   font-weight: 600;
-}
-
-.digit {
-  color: var(--entry);
-  font-variant-numeric: tabular-nums;
 }
 
 .hint-actions {

@@ -38,8 +38,8 @@ function onEntry(cell: number, digit: Digit | null) {
 
 function advanceHint() {
   const current = hint.value
-  if (current?.result.kind === 'hint' && current.stage < 3) {
-    hint.value = { ...current, stage: current.stage === 1 ? 2 : 3 }
+  if (current?.result.kind === 'hint' && current.stage === 1) {
+    hint.value = { ...current, stage: 2 }
     return
   }
   hint.value = { result: findHint(SAMPLE_PUZZLE, board.value), stage: 1 }

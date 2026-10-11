@@ -12,10 +12,7 @@ test.describe('staged hint', () => {
 
     await button.click()
     await expect(page.getByTestId('hint-strategy')).toHaveText('Full Block')
-    await expect(button).toHaveText('Show digit')
-
-    await button.click()
-    await expect(page.getByTestId('hint-digit')).toContainText('1')
+    await expect(page.locator('[data-cell="17"]')).toHaveText('')
 
     await page.getByTestId('hint-fill').click()
     await expect(page.locator('[data-cell="17"]')).toHaveText('1')
