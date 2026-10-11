@@ -90,10 +90,6 @@ function fillHint() {
         @entry="onEntry"
       />
 
-      <p class="status" data-testid="violation-count">
-        {{ violations.length }} rule {{ violations.length === 1 ? 'violation' : 'violations' }}
-      </p>
-
       <HintPanel
         :view="hint"
         :solved="solved"
@@ -184,17 +180,12 @@ h1 {
   font-weight: 600;
 }
 
-/* The count is what the grid currently says, so it is held close to it. */
+/* The hint panel acts on the grid, so it is held close to it. */
 .work {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: var(--space-sm);
-}
-
-.status {
-  margin: 0;
-  font-size: 0.9rem;
 }
 </style>

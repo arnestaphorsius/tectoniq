@@ -265,7 +265,6 @@ describe('hint', () => {
     const grid = work.get('[data-testid="puzzle-grid"]').element
     const button = work.get('[data-testid="hint-advance"]')
 
-    expect(work.find('[data-testid="violation-count"]').exists()).toBe(true)
     expect(work.find('[data-testid="hint-status"]').exists()).toBe(true)
     expect(grid.compareDocumentPosition(button.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
@@ -320,7 +319,7 @@ describe('hint', () => {
     await wrapper.get('[data-testid="hint-fill"]').trigger('click')
 
     expect(cell(wrapper, 15).text()).toBe('1')
-    expect(wrapper.get('[data-testid="violation-count"]').text()).toBe('0 rule violations')
+    expect(wrapper.findAll('[data-testid="violation-marker"]')).toHaveLength(0)
     expectNoHint(wrapper)
 
     await hintAt(wrapper, 1)
