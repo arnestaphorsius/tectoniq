@@ -1,5 +1,6 @@
 import type { Candidates } from './candidates'
 import { cageIds, cageSize, cellCount, cellsInCage, touching } from './grid'
+import { EXPLANATIONS } from './hintCopy'
 import { isDigit, type Board, type Digit, type Puzzle } from './types'
 import { valueAt } from './validate'
 
@@ -23,7 +24,7 @@ export interface Reads {
  * A digit that must go in a cell.
  *
  * `justifying` holds the cells whose digits make the case, never the target itself.
- * The explanation is written to be shown before the digit is, so it never names it.
+ * The explanation's wording lives in `hintCopy.ts`.
  */
 export interface Placement {
   readonly kind: 'placement'
@@ -59,12 +60,6 @@ export interface Strategy {
   readonly name: string
   apply(puzzle: Puzzle, board: Board, candidates: Candidates): Step | null
 }
-
-const ruleCage = (size: number) =>
-  size === 1
-    ? 'A cage of a single cell holds just one digit: the smallest there is.'
-    : `A cage of ${size} cells holds each digit from 1 to ${size} exactly once.`
-const RULE_TOUCH = 'Equal digits may not touch, not even diagonally.'
 
 function digitsUpTo(size: number): Digit[] {
   const digits: Digit[] = []
@@ -134,10 +129,7 @@ export const FULL_BLOCK: Strategy = {
         cell: target,
         digit,
         justifying: cells.filter((cell) => cell !== target),
-        explanation:
-          cells.length === 1
-            ? `${ruleCage(1)} This cell is a cage on its own, so there is nothing else it could be.`
-            : `${ruleCage(cells.length)} Every other cell of this cage is filled, so this cell takes the one digit still missing.`,
+        explanation: EXPLANATIONS.fullBlock(cells.length),
         reads: [],
       })
     }
@@ -172,7 +164,7 @@ export const UNIQUE: Strategy = {
           cell: target,
           digit,
           justifying: ascending(others.flatMap((cell) => touchingWith(puzzle, board, cell, digit))),
-          explanation: `${ruleCage(cells.length)} ${RULE_TOUCH} One digit this cage still needs is ruled out of every other open cell by a highlighted copy of it nearby, so this is the only place left for it.`,
+          explanation: EXPLANATIONS.unique(cells.length),
           reads: [],
         })
       }
@@ -202,7 +194,7 @@ export const CROWN: Strategy = {
         cell,
         digit,
         justifying: touchingPlaced(puzzle, board, cell, (value) => value <= size),
-        explanation: `${RULE_TOUCH} This cell's cage only allows 1 to ${size}, and the highlighted digits around it already use every one of those but one.`,
+        explanation: EXPLANATIONS.crown(size),
         reads: [],
       })
     }
@@ -242,11 +234,7 @@ export const NAKED_SINGLE: Strategy = {
         cell,
         digit,
         justifying: ascending([...inCage, ...around]),
-        explanation:
-          `This cell's cage only allows 1 to ${size}. A digit can't repeat within its cage, and ${RULE_TOUCH.toLowerCase()} ` +
-          (byEarlierSteps
-            ? 'The highlighted digits and the steps before this one rule out every option but one.'
-            : 'Between them, the highlighted digits rule out every option but one.'),
+        explanation: EXPLANATIONS.nakedSingle(size, byEarlierSteps),
         reads: [{ cell }],
       })
     })
@@ -280,7 +268,7 @@ export const HIDDEN_SINGLE: Strategy = {
             ...others,
             ...others.flatMap((cell) => touchingWith(puzzle, board, cell, digit)),
           ]),
-          explanation: `${ruleCage(cells.length)} One digit this cage still needs has been ruled out of every other open cell in it, highlighted, so it can only go here.`,
+          explanation: EXPLANATIONS.hiddenSingle(cells.length),
           reads: others.map((cell) => ({ cell, digits: [digit] })),
         })
       }

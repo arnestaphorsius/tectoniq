@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { HINT_MESSAGES } from '@/domain/hintCopy'
 import type { HintView } from './hintView'
 
 /**
@@ -29,10 +30,9 @@ const advanceLabel = computed(() => {
 })
 
 const MESSAGES = {
-  violations: 'The board breaks a rule. Fix the marked cells first, then ask again.',
-  none: 'No hint found. None of the strategies Tectoniq knows can place a digit from here.',
-  'dead-end':
-    "This board can't be completed as it stands: the highlighted cells have no digit left that fits. An entry may be wrong.",
+  violations: HINT_MESSAGES.violations,
+  none: HINT_MESSAGES.none,
+  'dead-end': HINT_MESSAGES.deadEnd,
 } as const
 
 const message = computed(() => {
@@ -46,7 +46,7 @@ const message = computed(() => {
     <!-- Always present, so a screen reader is already listening when text arrives. -->
     <div class="hint-text" role="status" data-testid="hint-status">
       <template v-if="hint">
-        <p v-if="stage === 1">Look at the highlighted cell. Can you work out what goes there?</p>
+        <p v-if="stage === 1">{{ HINT_MESSAGES.whereToLook }}</p>
         <template v-else>
           <p class="strategy" data-testid="hint-strategy">{{ hint.placement.strategy }}</p>
           <p data-testid="hint-explanation">{{ hint.placement.explanation }}</p>
