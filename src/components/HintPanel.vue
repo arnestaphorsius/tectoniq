@@ -40,25 +40,11 @@ const message = computed(() => {
 
 <template>
   <section class="hint" aria-label="Hint">
-    <!-- Always present, so a screen reader is already listening when text arrives. -->
-    <div class="hint-text" role="status" data-testid="hint-status">
-      <template v-if="hint">
-        <p v-if="stage === 1">{{ HINT_MESSAGES.whereToLook }}</p>
-        <template v-else>
-          <p class="strategy" data-testid="hint-strategy">{{ hint.placement.strategy }}</p>
-          <p data-testid="hint-explanation">{{ hint.placement.explanation }}</p>
-        </template>
-      </template>
-      <p v-else-if="message" data-testid="hint-message" :data-kind="message.kind">
-        {{ message.text }}
-      </p>
-    </div>
-
     <div class="hint-actions">
       <button
         v-if="hint && stage === 2"
         type="button"
-        class="control"
+        class="control primary"
         data-testid="hint-fill"
         @click="emit('fill')"
       >
@@ -67,7 +53,7 @@ const message = computed(() => {
       <button
         v-else
         type="button"
-        class="control"
+        class="control primary"
         data-testid="hint-advance"
         :disabled="solved && view === null"
         @click="emit('advance')"
@@ -85,16 +71,34 @@ const message = computed(() => {
         ×
       </button>
     </div>
+
+    <!-- Always present, so a screen reader is already listening when text arrives. -->
+    <div class="hint-text" role="status" data-testid="hint-status">
+      <template v-if="hint">
+        <p v-if="stage === 1">{{ HINT_MESSAGES.whereToLook }}</p>
+        <template v-else>
+          <p class="strategy" data-testid="hint-strategy">{{ hint.placement.strategy }}</p>
+          <p data-testid="hint-explanation">{{ hint.placement.explanation }}</p>
+        </template>
+      </template>
+      <p v-else-if="message" data-testid="hint-message" :data-kind="message.kind">
+        {{ message.text }}
+      </p>
+    </div>
   </section>
 </template>
 
 <style scoped>
 /*
- * Text above, controls below, bound tightly: the panel is one thing the player reads
- * and then acts on. The measure is held short so an explanation reads as a sentence
- * rather than a banner across a wide grid.
+ * Controls above, text below, bound tightly. The player presses the same spot
+ * through every stage, so nothing may move the main button: the text that comes
+ * and goes and changes length sits under it, the close control has its own column
+ * beside it, and the button keeps one width whatever its label says. The measure
+ * is held short so an explanation reads as a sentence rather than a banner across
+ * a wide grid.
  */
 .hint {
+  width: 100%;
   display: grid;
   justify-items: center;
   gap: var(--space-xs);
@@ -120,11 +124,20 @@ const message = computed(() => {
 }
 
 .hint-actions {
-  display: flex;
+  justify-self: stretch;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   gap: var(--space-xs);
 }
 
+.primary {
+  grid-column: 2;
+  min-width: 6rem;
+}
+
 .close {
+  grid-column: 3;
+  justify-self: start;
   padding: 0 var(--space-sm);
   font-size: 1.25rem;
   line-height: 1;

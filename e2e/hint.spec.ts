@@ -22,4 +22,21 @@ test.describe('staged hint', () => {
     await page.getByTestId('hint-advance').click()
     await expect(target).toHaveAttribute('data-cell', '15')
   })
+
+  test('the button stays in one place through every stage', async ({ page }) => {
+    await page.goto('/')
+    const button = page.locator('[data-testid="hint-advance"], [data-testid="hint-fill"]')
+
+    const idle = await button.boundingBox()
+    await button.click()
+    await expect(button).toHaveText('Why?')
+    const stage1 = await button.boundingBox()
+    await button.click()
+    await expect(button).toHaveText('Fill in')
+    const stage2 = await button.boundingBox()
+
+    expect(idle).not.toBeNull()
+    expect(stage1).toEqual(idle)
+    expect(stage2).toEqual(idle)
+  })
 })
