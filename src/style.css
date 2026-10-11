@@ -6,6 +6,8 @@
   --given: #1a1d23;
   --entry: #2f6f9f;
   --bad: #b4342a;
+  /* Where a hint points. Amber: apart from the entry blue and the violation red. */
+  --hint: #b7791f;
 
   /*
    * The edge of a control. `--rule` is 1.65:1 against paper, too faint to show
@@ -70,6 +72,7 @@
     --given: #e8e6e1;
     --entry: #7db8e0;
     --bad: #e8776d;
+    --hint: #e0b053;
     --control-rule: #6f747c;
     --wash: color-mix(in srgb, var(--ink) 9%, var(--paper));
   }
@@ -115,6 +118,13 @@ body {
 
 .control:active {
   background: var(--wash);
+}
+
+.control:disabled,
+.control:disabled:hover {
+  border-color: var(--rule);
+  opacity: 0.55;
+  cursor: default;
 }
 
 .control:focus-visible {

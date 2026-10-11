@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
+import HintPanel from './components/HintPanel.vue'
+import { marksFor, type HintView } from './components/hintView'
 import PuzzleEditor from './components/PuzzleEditor.vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
+import { findHint } from './domain/hint'
 import { SAMPLE_PUZZLE } from './domain/samplePuzzle'
 import { withEntry } from './domain/selection'
 import { emptyBoard, type Board, type Digit, type Puzzle } from './domain/types'
-import { findViolations } from './domain/validate'
+import { findViolations, isSolved } from './domain/validate'
 
 // The board is the app's state; the grid owns only which cell is selected.
 const board = ref<Board>(emptyBoard(SAMPLE_PUZZLE))
@@ -19,8 +22,32 @@ const violations = computed(() => findViolations(SAMPLE_PUZZLE, board.value))
 const screen = ref<'play' | 'editor'>('play')
 const drawn = shallowRef<Puzzle | undefined>()
 
+/**
+ * The hint on screen, if any. A hint describes the board it was asked on, so any
+ * change to the board — or leaving the screen — throws it away rather than leaving
+ * it to go stale. Asking again always starts from the first stage.
+ */
+const hint = shallowRef<HintView | null>(null)
+const solved = computed(() => isSolved(SAMPLE_PUZZLE, board.value))
+
+watch([board, screen], () => (hint.value = null))
+
 function onEntry(cell: number, digit: Digit | null) {
   board.value = withEntry(board.value, cell, digit)
+}
+
+function advanceHint() {
+  const current = hint.value
+  if (current?.result.kind === 'hint' && current.stage < 3) {
+    hint.value = { ...current, stage: current.stage === 1 ? 2 : 3 }
+    return
+  }
+  hint.value = { result: findHint(SAMPLE_PUZZLE, board.value), stage: 1 }
+}
+
+function fillHint() {
+  const result = hint.value?.result
+  if (result?.kind === 'hint') onEntry(result.placement.cell, result.placement.digit)
 }
 </script>
 
@@ -59,12 +86,21 @@ function onEntry(cell: number, digit: Digit | null) {
         :puzzle="SAMPLE_PUZZLE"
         :board="board"
         :violations="violations"
+        :marks="marksFor(hint)"
         @entry="onEntry"
       />
 
       <p class="status" data-testid="violation-count">
         {{ violations.length }} rule {{ violations.length === 1 ? 'violation' : 'violations' }}
       </p>
+
+      <HintPanel
+        :view="hint"
+        :solved="solved"
+        @advance="advanceHint"
+        @fill="fillHint"
+        @close="hint = null"
+      />
     </div>
 
     <PuzzleEditor v-else :initial-puzzle="drawn" @change="(puzzle) => (drawn = puzzle)" />
