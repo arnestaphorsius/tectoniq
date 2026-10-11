@@ -172,7 +172,7 @@ export const UNIQUE: Strategy = {
           cell: target,
           digit,
           justifying: ascending(others.flatMap((cell) => touchingWith(puzzle, board, cell, digit))),
-          explanation: `${ruleCage(cells.length)} ${RULE_TOUCH} One digit this cage still needs is touched by a highlighted copy of itself at every other open cell of the cage, so this is the only place left for it.`,
+          explanation: `${ruleCage(cells.length)} ${RULE_TOUCH} One digit this cage still needs is ruled out of every other open cell by a highlighted copy of it nearby, so this is the only place left for it.`,
           reads: [],
         })
       }
