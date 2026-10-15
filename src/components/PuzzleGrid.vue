@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { cageEdges } from '@/domain/grid'
+import type { HintMarks } from './hintView'
 import { isWritable, nextSelection, toggledEntry, type Direction } from '@/domain/selection'
 import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/types'
 import { valueAt, type Violation } from '@/domain/validate'
 
-const props = defineProps<{
-  puzzle: Puzzle
-  board: Board
-  violations: readonly Violation[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    puzzle: Puzzle
+    board: Board
+    violations: readonly Violation[]
+    marks?: HintMarks
+  }>(),
+  { marks: () => ({}) },
+)
 
 /**
  * The grid owns the selection because selection is view state — which cell the
@@ -52,6 +57,11 @@ const cells = computed(() =>
       // the player what their own digit collided with.
       isOffending: offendingCells.value.has(cell),
       isSelected: selected.value === cell,
+      hint: {
+        'hint-target': props.marks.target === cell,
+        'hint-reason': props.marks.reasons?.includes(cell) === true,
+        'hint-dead': props.marks.dead?.includes(cell) === true,
+      },
       edges: cageEdges(props.puzzle, cell),
     }
   }),
@@ -139,7 +149,7 @@ watch(selected, (cell) => {
         v-for="cell in cells"
         :key="cell.cell"
         class="cell"
-        :class="[cell.edges, { given: cell.isGiven, selected: cell.isSelected }]"
+        :class="[cell.edges, cell.hint, { given: cell.isGiven, selected: cell.isSelected }]"
         data-testid="cell"
         :data-cell="cell.cell"
         role="gridcell"
@@ -212,6 +222,26 @@ watch(selected, (cell) => {
 .cell.selected {
   outline: 3px solid var(--entry);
   outline-offset: -3px;
+}
+
+/*
+ * Hint marks are fills, never outlines, so they cannot be mistaken for the selection
+ * (an inset outline) or the violation marker (a corner triangle), and a cell can
+ * carry the selection and a mark at once. The target is the strongest tint and
+ * gets an inner ring as well, so it still stands apart from the reasons in
+ * greyscale. A dead cell is washed with the colour that means "wrong".
+ */
+.cell.hint-reason {
+  background: color-mix(in srgb, var(--hint) 16%, var(--paper));
+}
+
+.cell.hint-target {
+  background: color-mix(in srgb, var(--hint) 34%, var(--paper));
+  box-shadow: inset 0 0 0 2px var(--hint);
+}
+
+.cell.hint-dead {
+  background: color-mix(in srgb, var(--bad) 22%, var(--paper));
 }
 
 /*

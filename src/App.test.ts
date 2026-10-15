@@ -2,6 +2,7 @@
 import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vite-plus/test'
 import App from './App.vue'
+import { SAMPLE_PUZZLE, SAMPLE_SOLUTION } from './domain/samplePuzzle'
 
 enableAutoUnmount(afterEach)
 
@@ -216,5 +217,215 @@ describe('screens', () => {
     await openEditor(wrapper)
 
     expect(cell(wrapper, 0).classes('edge-right')).toBe(false)
+  })
+})
+
+describe('hint', () => {
+  const advance = (wrapper: VueWrapper) => wrapper.get('[data-testid="hint-advance"]')
+  const status = (wrapper: VueWrapper) => wrapper.get('[data-testid="hint-status"]')
+  const marked = (wrapper: VueWrapper, mark: 'target' | 'reason' | 'dead') =>
+    wrapper
+      .findAll(`.hint-${mark}`)
+      .map((found) => Number(found.attributes('data-cell')))
+      .sort((a, b) => a - b)
+
+  /** Types `entries` into the play grid, as `cell → digit`. */
+  async function enter(wrapper: VueWrapper, entries: Readonly<Record<number, number>>) {
+    for (const [index, digit] of Object.entries(entries)) {
+      await pressOn(wrapper, Number(index), String(digit))
+    }
+  }
+
+  const F_17 = { 17: 1 }
+  const F_STUCK = { 13: 4, 14: 5, 15: 1, 16: 3, 17: 1, 18: 2 }
+  const F_DEAD_2 = { 13: 1, 15: 5 }
+  const VIOLATION = { 5: 3 }
+  const SOLVED = Object.fromEntries(
+    SAMPLE_SOLUTION.flatMap((digit, index) =>
+      SAMPLE_PUZZLE.givens[index] == null ? [[index, digit]] : [],
+    ),
+  )
+
+  /** Asks for a hint and steps it forward to `stage`. */
+  async function hintAt(wrapper: VueWrapper, stage: 1 | 2) {
+    for (let step = 0; step < stage; step += 1) await advance(wrapper).trigger('click')
+  }
+
+  function expectNoHint(wrapper: VueWrapper) {
+    expect(marked(wrapper, 'target')).toEqual([])
+    expect(marked(wrapper, 'reason')).toEqual([])
+    expect(marked(wrapper, 'dead')).toEqual([])
+    expect(status(wrapper).text()).toBe('')
+    expect(advance(wrapper).text()).toBe('Hint')
+  }
+
+  it('button placement; enabled, and disabled when solved', async () => {
+    const wrapper = mountApp()
+    const work = wrapper.get('.work')
+    const grid = work.get('[data-testid="puzzle-grid"]').element
+    const button = work.get('[data-testid="hint-advance"]')
+
+    expect(work.find('[data-testid="hint-status"]').exists()).toBe(true)
+    expect(grid.compareDocumentPosition(button.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(button.text()).toBe('Hint')
+    expect(button.attributes('disabled')).toBeUndefined()
+
+    await enter(wrapper, SOLVED)
+
+    expect(advance(wrapper).attributes('disabled')).toBeDefined()
+  })
+
+  it('stage 1 marks only the target', async () => {
+    const wrapper = mountApp()
+
+    await hintAt(wrapper, 1)
+
+    expect(marked(wrapper, 'target')).toEqual([17])
+    expect(cell(wrapper, 17).classes()).not.toContain('selected')
+    expect(hasMarker(wrapper, 17)).toBe(false)
+    expect(marked(wrapper, 'reason')).toEqual([])
+    expect(wrapper.find('[data-testid="hint-strategy"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="hint-explanation"]').exists()).toBe(false)
+    expect(advance(wrapper).text()).toBe('Why?')
+    expect(wrapper.find('[data-testid="hint-close"]').exists()).toBe(true)
+  })
+
+  it('stage 2 shows strategy and justifying cells, and swaps in Fill in', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_17)
+
+    await hintAt(wrapper, 2)
+
+    expect(wrapper.get('[data-testid="hint-strategy"]').text()).toBe('Unique')
+    expect(wrapper.get('[data-testid="hint-explanation"]').text()).not.toBe('')
+    expect(marked(wrapper, 'target')).toEqual([15])
+    expect(marked(wrapper, 'reason')).toEqual([17])
+    expect(cell(wrapper, 17).classes()).not.toContain('hint-target')
+    // The digit is never shown ahead of filling it in.
+    expect(cell(wrapper, 15).text()).toBe('')
+    expect(wrapper.find('[data-testid="hint-fill"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="hint-advance"]').exists()).toBe(false)
+  })
+
+  it('Fill in enters the digit and discards the hint', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_17)
+    const before = digits(wrapper)
+    await hintAt(wrapper, 2)
+    expect(digits(wrapper)).toEqual(before)
+
+    await wrapper.get('[data-testid="hint-fill"]').trigger('click')
+
+    expect(cell(wrapper, 15).text()).toBe('1')
+    expect(wrapper.findAll('[data-testid="violation-marker"]')).toHaveLength(0)
+    expectNoHint(wrapper)
+
+    await hintAt(wrapper, 1)
+    expect(advance(wrapper).text()).toBe('Why?')
+    expect(wrapper.find('[data-testid="hint-strategy"]').exists()).toBe(false)
+  })
+
+  it('close discards at every stage', async () => {
+    for (const stage of [1, 2] as const) {
+      const wrapper = mountApp()
+      const before = digits(wrapper)
+      await hintAt(wrapper, stage)
+
+      await wrapper.get('[data-testid="hint-close"]').trigger('click')
+
+      expectNoHint(wrapper)
+      expect(digits(wrapper)).toEqual(before)
+      wrapper.unmount()
+    }
+  })
+
+  it('a board change or screen switch discards the hint', async () => {
+    const wrapper = mountApp()
+    await hintAt(wrapper, 2)
+    await pressOn(wrapper, 0, '4')
+    expectNoHint(wrapper)
+
+    await hintAt(wrapper, 2)
+    await pressOn(wrapper, 0, 'Backspace')
+    expectNoHint(wrapper)
+
+    await hintAt(wrapper, 2)
+    await wrapper.get('[data-testid="open-editor"]').trigger('click')
+    await wrapper.get('[data-testid="open-play"]').trigger('click')
+    expectNoHint(wrapper)
+  })
+
+  it('a violation asks to fix it first', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, VIOLATION)
+
+    await advance(wrapper).trigger('click')
+
+    expect(wrapper.get('[data-testid="hint-message"]').attributes('data-kind')).toBe('violations')
+    expect(status(wrapper).text()).toMatch(/fix/i)
+    expect(marked(wrapper, 'target')).toEqual([])
+    expect(marked(wrapper, 'dead')).toEqual([])
+  })
+
+  it('no hint is said plainly', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+
+    await advance(wrapper).trigger('click')
+
+    expect(wrapper.get('[data-testid="hint-message"]').attributes('data-kind')).toBe('none')
+    expect(status(wrapper).text()).toMatch(/no hint found/i)
+    expect(marked(wrapper, 'target')).toEqual([])
+    expect(marked(wrapper, 'dead')).toEqual([])
+  })
+
+  it('a dead end says so and highlights every dead cell', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_DEAD_2)
+
+    await advance(wrapper).trigger('click')
+
+    expect(wrapper.get('[data-testid="hint-message"]').attributes('data-kind')).toBe('dead-end')
+    expect(status(wrapper).text()).toMatch(/can.t be completed/i)
+    expect(status(wrapper).text()).not.toMatch(/no hint found/i)
+    expect(marked(wrapper, 'dead')).toEqual([14, 17])
+  })
+
+  it('messages close and clear like a hint', async () => {
+    for (const entries of [VIOLATION, F_STUCK, F_DEAD_2]) {
+      for (const dismiss of ['close', 'entry', 'screen'] as const) {
+        const wrapper = mountApp()
+        await enter(wrapper, entries)
+        await advance(wrapper).trigger('click')
+        expect(wrapper.find('[data-testid="hint-message"]').exists()).toBe(true)
+
+        if (dismiss === 'close') await wrapper.get('[data-testid="hint-close"]').trigger('click')
+        if (dismiss === 'entry') await pressOn(wrapper, 0, '4')
+        if (dismiss === 'screen') {
+          await wrapper.get('[data-testid="open-editor"]').trigger('click')
+          await wrapper.get('[data-testid="open-play"]').trigger('click')
+        }
+
+        expectNoHint(wrapper)
+        wrapper.unmount()
+      }
+    }
+  })
+
+  it('hint text is in a status region', async () => {
+    const wrapper = mountApp()
+    expect(status(wrapper).attributes('role')).toBe('status')
+
+    await hintAt(wrapper, 2)
+    for (const id of ['hint-strategy', 'hint-explanation']) {
+      expect(status(wrapper).find(`[data-testid="${id}"]`).exists()).toBe(true)
+    }
+    await wrapper.get('[data-testid="hint-close"]').trigger('click')
+
+    await enter(wrapper, F_STUCK)
+    await advance(wrapper).trigger('click')
+    expect(status(wrapper).find('[data-testid="hint-message"]').exists()).toBe(true)
   })
 })

@@ -18,9 +18,9 @@ test.describe('walking skeleton', () => {
     await expect(page.locator('[data-cell="4"]')).toHaveText('3')
   })
 
-  test('reports a legal board', async ({ page }) => {
+  test('marks no violations on a legal board', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByTestId('violation-count')).toHaveText('0 rule violations')
+    await expect(page.getByTestId('violation-marker')).toHaveCount(0)
   })
 })

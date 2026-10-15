@@ -2,8 +2,9 @@
 
 A web app that helps people solve **Tectonic** puzzles (also sold as **Suguru**).
 
-MVP: create a puzzle, then play it. Solving assistance — hints, a solver, difficulty
-rating — comes later and is deliberately not built yet.
+MVP: create a puzzle, then play it. On the play screen the player can ask for a
+staged hint, found by a fixed list of solving strategies in `src/domain/`. A full
+solver and difficulty rating come later and are deliberately not built yet.
 
 ## Commands
 
