@@ -70,6 +70,8 @@ e2e/             Playwright specs.
 ```
 
 `src/domain/` is the load-bearing part and must stay free of framework imports.
+A `no-restricted-imports` override in `vite.config.ts` enforces this: the domain
+may import only its own modules, so Vue, `@/…` and `../…` fail `pnpm verify`.
 Cells are addressed by a flat row-major **index** (`row * width + col`), which keeps
 cell identity a plain number and makes violations cheap to compare and render.
 
