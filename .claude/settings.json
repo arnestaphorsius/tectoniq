@@ -1,0 +1,22 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/commit-guard.mjs\"",
+            "timeout": 180,
+            "statusMessage": "Checking commit against CLAUDE.md rules"
+          }
+        ]
+      }
+    ]
+  }
+}

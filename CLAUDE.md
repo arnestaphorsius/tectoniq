@@ -67,7 +67,6 @@ src/domain/      Pure TypeScript. No Vue, no DOM. Fully unit tested.
 src/components/  Vue components. Presentation only.
 src/App.vue      Composition root.
 e2e/             Playwright specs.
-work/<issue>/    Factory artifacts per ticket (see below).
 ```
 
 `src/domain/` is the load-bearing part and must stay free of framework imports.
@@ -121,53 +120,3 @@ above.
 Opening a pull request publishes to a public repository, so `/pr` shows the body and
 waits for a human yes before submitting. Merging is a human gate and never an
 agent's to take.
-
-## The factory
-
-Tickets are GitHub Issues. Agents move them through stages; a single `stage:` label
-says where a ticket is, so the board is never ambiguous.
-
-```
-stage:spec → stage:awaiting-approval → stage:build → stage:qa → stage:review → stage:done
-```
-
-Flags: `blocked` (needs a human), `qa:failed` / `review:failed` (back to build).
-
-Run `./scripts/setup-labels.sh` once to create these labels.
-
-### Two human gates
-
-**Spec approval** and **merge**. Everything between is agents. Spec approval is
-where the leverage is: most bad agent output traces to a ticket that was
-underspecified and an agent that guessed instead of asking.
-
-### Stages
-
-| Stage  | Command       | Status        |
-| ------ | ------------- | ------------- |
-| Spec   | `/spec <n>`   | Built         |
-| Build  | `/build <n>`  | Built         |
-| QA     | `/qa <n>`     | Not built yet |
-| Review | `/review <n>` | Not built yet |
-| Board  | `/factory`    | Built         |
-
-Later stages are deliberately absent. Each one gets written only after the stage
-before it has been run on real tickets enough times that its output stops needing
-correction. Automating a prompt you are still fixing just produces wrong answers
-faster.
-
-### Handoff is by file, never by conversation
-
-Every stage reads and writes `work/<issue>/`, so any stage can be re-run cold by a
-fresh agent with no memory of what came before. If a stage needs context that only
-exists in a chat transcript, that stage is broken.
-
-### Rules for every agent working here
-
-1. **Never invent a requirement.** If the ticket doesn't say, it goes in the spec's
-   Open Questions and the ticket gets `blocked`. Guessing is the failure mode this
-   whole system exists to prevent.
-2. **Never claim done without a passing `pnpm verify`.** Paste the result.
-3. **Respect Out of scope.** If the ticket says not to touch it, don't — even if it
-   looks broken. Note it and move on.
-4. **Append to `work/<issue>/notes.md`** as you go, for whoever picks this up next.
