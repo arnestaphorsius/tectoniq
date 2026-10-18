@@ -11,6 +11,11 @@ work/
 # Impeccable
 .github/skills/impeccable
 .claude/skills/impeccable
+.impeccable/
+
+# Copilot
+.github/agents/impeccable*
+.github/hooks/impeccable*
 
 # Playwright
 /test-results/
