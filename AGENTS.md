@@ -1,0 +1,124 @@
+# Tectoniq
+
+A web app that helps people solve **Tectonic** puzzles (also sold as **Suguru**).
+
+MVP: create a puzzle, then play it. On the play screen the player can ask for a
+staged hint, found by a fixed list of solving strategies in `src/domain/`. A full
+solver and difficulty rating come later and are deliberately not built yet.
+
+## Commands
+
+| Command           | What it does                                                 |
+| ----------------- | ------------------------------------------------------------ |
+| `pnpm dev`        | Dev server on :5173                                          |
+| `pnpm verify`     | **The quality gate.** Check, typecheck, unit test, build     |
+| `pnpm check`      | Format, lint and type-check `.ts` — Oxfmt + Oxlint, one pass |
+| `pnpm check:fix`  | Fix whatever Oxfmt and Oxlint can fix                        |
+| `pnpm typecheck`  | `vue-tsc` — the only thing that type-checks SFC templates    |
+| `pnpm test`       | Unit tests                                                   |
+| `pnpm test:watch` | Unit tests in watch mode                                     |
+| `pnpm test:e2e`   | Playwright end-to-end tests                                  |
+
+`pnpm verify` is the contract. CI runs exactly this command — if they ever diverge,
+the factory's quality gate is a lie. **Never report work as done without a passing
+`pnpm verify`.**
+
+E2E needs browsers installed once: `pnpm exec playwright install chromium`.
+It is not part of `verify` on purpose — it is slow, and it belongs to the QA stage.
+
+## The toolchain
+
+[Vite+](https://viteplus.dev) (`vp`) unifies dev, build, test, lint and format, so
+there is no ESLint and no Prettier here. Lint and format settings live in the `lint`
+and `fmt` keys of `vite.config.ts`, not in separate dotfiles. Oxfmt does honour
+`// prettier-ignore`, which is what keeps the grid-shaped array literals readable.
+
+Two constraints worth knowing before you change any of it, both established by
+experiment rather than by reading docs:
+
+- **`vp check` does not type-check SFC templates.** A component given a prop of
+  entirely the wrong type passes `vp check` and is caught only by `vue-tsc`. Both
+  steps are in `verify` for that reason — dropping `pnpm typecheck` would silently
+  cost you every template type error in the app.
+- **TypeScript is pinned to 5.9.3 because of `vue-tsc`, not because of the linter.**
+  TS 7 repackaged its exports and `vue-tsc` (3.3.10, the latest) still resolves
+  `typescript/lib/tsc`, so it crashes outright on TS 7. Retry the bump when
+  `vue-tsc` ships TS 7 support; nothing else in the tree objects.
+
+## The rules of Tectonic
+
+All three matter, and the third is the one people forget:
+
+1. The grid is partitioned into **cages** of 1 to 5 cells.
+2. A cage of _N_ cells contains each digit **1..N exactly once**.
+3. **No two equal digits may touch — including diagonally.**
+
+Rule 3 is what makes this not Sudoku, and it is what makes the puzzle solvable at
+all: without it the cages would be independent of each other.
+
+## Architecture
+
+The app is a static front end. There is no backend, and one should not be added
+without a ticket that argues for it — a constraint solver in a Web Worker would
+keep the app deployable as static files.
+
+```
+src/domain/      Pure TypeScript. No Vue, no DOM. Fully unit tested.
+src/components/  Vue components. Presentation only.
+src/App.vue      Composition root.
+e2e/             Playwright specs.
+```
+
+`src/domain/` is the load-bearing part and must stay free of framework imports.
+A `no-restricted-imports` override in `vite.config.ts` enforces this: the domain
+may import only its own modules, so Vue, `@/…` and `../…` fail `pnpm verify`.
+Cells are addressed by a flat row-major **index** (`row * width + col`), which keeps
+cell identity a plain number and makes violations cheap to compare and render.
+
+A `Board` holds only player entries; givens live on the `Puzzle`. `valueAt()`
+resolves the given first, so **a given can never be overwritten**. Preserve that.
+
+### Conventions
+
+- TypeScript is strict, with `noUncheckedIndexedAccess`. Indexed reads are
+  `T | undefined` — handle it rather than asserting it away.
+- Oxfmt owns formatting: no semicolons, single quotes, 100 columns. Don't argue with
+  it, run `pnpm check:fix`. Grid-shaped array literals are wrapped in
+  `// prettier-ignore` because their visual layout carries meaning.
+- Domain functions return **all** problems they find, not the first, so the UI can
+  show them together.
+- Commits follow the rules in [Committing](#committing) below.
+
+## Committing
+
+These six rules are absolute. They apply to every commit, by anyone, human or
+agent.
+
+1. **Never commit while `pnpm verify` is failing.** Not "I'll fix it in the next
+   commit" — run it, get it green, then commit.
+2. **Use conventional commits**: `feat:`, `fix:`, `chore:`, `docs:`, `ci:`, `test:`,
+   `refactor:`. Add a scope where it sharpens things: `feat(domain):`.
+3. **The title says concisely what changes.** Imperative mood, no trailing full
+   stop.
+4. **Never sign or co-sign a commit.** No `Co-Authored-By`, no `Signed-off-by`, no
+   generated-with trailers, no attribution of any kind.
+5. The body can be used to add extra explanation to the _what_ and _why_, and nothing else. Do not list
+   changes the diff already tell you. Use it for the reasoning a reader cannot
+   reconstruct. If there is no such reasoning, leave the body out entirely; a bare title is a perfectly good commit.
+6. Use no more than 72 columns in the body. Wrap at 72, not 80 or 100. The title is
+   always one line, and the body is always wrapped at 72.
+
+## Pull requests
+
+Use `/pr`. It updates the branch's existing pull request rather than opening a
+second one, and it writes the body from the full branch diff instead of from the
+commit messages — messages state intent, and the diff is where intent and reality
+are caught disagreeing.
+
+The body follows `.github/PULL_REQUEST_TEMPLATE.md`, which GitHub also applies to
+pull requests opened by hand in the browser. Titles follow the commit-title rules
+above.
+
+Opening a pull request publishes to a public repository, so `/pr` shows the body and
+waits for a human yes before submitting. Merging is a human gate and never an
+agent's to take.

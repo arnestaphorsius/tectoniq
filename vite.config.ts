@@ -166,12 +166,29 @@ export default defineConfig({
         },
       },
       {
-        // Compiler macros (defineProps, defineEmits, …) are injected by the SFC
-        // compiler, so a scope-based rule cannot see them. TypeScript is what
-        // actually catches undefined identifiers in these files.
         files: ['**/*.vue'],
         rules: {
           'no-undef': 'off',
+        },
+      },
+      {
+        files: ['src/domain/**'],
+        rules: {
+          'no-restricted-imports': [
+            'error',
+            {
+              patterns: [
+                {
+                  group: ['vue', 'vue/*', '@vue/*', '@vitejs/plugin-vue', '*.vue'],
+                  message: 'src/domain/ must stay free of Vue.',
+                },
+                {
+                  group: ['@/**', '../**'],
+                  message: 'src/domain/ imports only its own modules, never the UI layer.',
+                },
+              ],
+            },
+          ],
         },
       },
     ],
@@ -192,9 +209,6 @@ export default defineConfig({
     printWidth: 100,
     trailingComma: 'all',
     sortPackageJson: false,
-    // `.claude/settings.json` is written by Claude Code, not by people.
-    // Formatting it turns the quality gate into a race against whichever tool
-    // writes last, so it is left alone.
     ignorePatterns: [
       'dist/',
       'coverage/',
