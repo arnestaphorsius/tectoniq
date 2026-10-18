@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
 import HintPanel from './components/HintPanel.vue'
-import { marksFor, type HintView } from './components/hintView'
+import { lastStage, marksFor, type HintView } from './components/hintView'
 import PuzzleEditor from './components/PuzzleEditor.vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
 import { findHint } from './domain/hint'
@@ -38,8 +38,8 @@ function onEntry(cell: number, digit: Digit | null) {
 
 function advanceHint() {
   const current = hint.value
-  if (current?.result.kind === 'hint' && current.stage === 1) {
-    hint.value = { ...current, stage: 2 }
+  if (current?.result.kind === 'hint' && current.stage < lastStage(current.result)) {
+    hint.value = { ...current, stage: current.stage + 1 }
     return
   }
   hint.value = { result: findHint(SAMPLE_PUZZLE, board.value), stage: 1 }

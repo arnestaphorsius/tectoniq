@@ -60,6 +60,7 @@ const cells = computed(() =>
       hint: {
         'hint-target': props.marks.target === cell,
         'hint-reason': props.marks.reasons?.includes(cell) === true,
+        'hint-losing': props.marks.losing?.includes(cell) === true,
         'hint-dead': props.marks.dead?.includes(cell) === true,
       },
       edges: cageEdges(props.puzzle, cell),
@@ -230,18 +231,33 @@ watch(selected, (cell) => {
  * carry the selection and a mark at once. The target is the strongest tint and
  * gets an inner ring as well, so it still stands apart from the reasons in
  * greyscale. A dead cell is washed with the colour that means "wrong".
+ *
+ * A cell losing digits to an elimination is crossed out with a single diagonal
+ * stroke instead: a pattern, not a fill, so it reads apart from the reasons in
+ * greyscale too. It sits on `background-image` while the fills sit on
+ * `background-color`, so a target that is also losing digits shows both.
  */
 .cell.hint-reason {
-  background: color-mix(in srgb, var(--hint) 16%, var(--paper));
+  background-color: color-mix(in srgb, var(--hint) 16%, var(--paper));
 }
 
 .cell.hint-target {
-  background: color-mix(in srgb, var(--hint) 34%, var(--paper));
+  background-color: color-mix(in srgb, var(--hint) 34%, var(--paper));
   box-shadow: inset 0 0 0 2px var(--hint);
 }
 
+.cell.hint-losing {
+  background-image: linear-gradient(
+    to top right,
+    transparent calc(50% - 1.5px),
+    color-mix(in srgb, var(--ink) 55%, transparent) calc(50% - 1.5px),
+    color-mix(in srgb, var(--ink) 55%, transparent) calc(50% + 1.5px),
+    transparent calc(50% + 1.5px)
+  );
+}
+
 .cell.hint-dead {
-  background: color-mix(in srgb, var(--bad) 22%, var(--paper));
+  background-color: color-mix(in srgb, var(--bad) 22%, var(--paper));
 }
 
 /*

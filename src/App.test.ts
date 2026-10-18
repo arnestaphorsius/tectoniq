@@ -239,7 +239,7 @@ describe('screens', () => {
 describe('hint', () => {
   const advance = (wrapper: VueWrapper) => wrapper.get('[data-testid="hint-advance"]')
   const status = (wrapper: VueWrapper) => wrapper.get('[data-testid="hint-status"]')
-  const marked = (wrapper: VueWrapper, mark: 'target' | 'reason' | 'dead') =>
+  const marked = (wrapper: VueWrapper, mark: 'target' | 'reason' | 'losing' | 'dead') =>
     wrapper
       .findAll(`.hint-${mark}`)
       .map((found) => Number(found.attributes('data-cell')))
@@ -447,5 +447,102 @@ describe('hint', () => {
     nextHintIs({ kind: 'none' })
     await advance(wrapper).trigger('click')
     expect(status(wrapper).find('[data-testid="hint-message"]').exists()).toBe(true)
+  })
+
+  it('an elimination gets its own stage with pair and losing cells marked', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+
+    await advance(wrapper).trigger('click')
+
+    expect(marked(wrapper, 'target')).toEqual([5])
+    expect(wrapper.find('[data-testid="hint-strategy"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="hint-explanation"]').exists()).toBe(false)
+    expect(cell(wrapper, 5).text()).toBe('')
+
+    await advance(wrapper).trigger('click')
+
+    const strategy = wrapper.get('[data-testid="hint-strategy"]')
+    expect(strategy.text()).toBe('Touching Pair')
+    expect(strategy.attributes('data-step')).toBe('elimination')
+    expect(wrapper.get('[data-testid="hint-explanation"]').text()).not.toBe('')
+    expect(marked(wrapper, 'reason')).toEqual([8, 9])
+    expect(marked(wrapper, 'losing')).toEqual([5])
+    expect(marked(wrapper, 'target')).toEqual([5])
+    // Two different marks, never one cell carrying both.
+    expect(cell(wrapper, 5).classes()).not.toContain('hint-reason')
+    expect(advance(wrapper).text()).toBe('Next')
+    expect(cell(wrapper, 5).text()).toBe('')
+  })
+
+  it("after the elimination come the placement's why and Fill in", async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+    await advance(wrapper).trigger('click')
+    await advance(wrapper).trigger('click')
+
+    await advance(wrapper).trigger('click')
+
+    const strategy = wrapper.get('[data-testid="hint-strategy"]')
+    expect(strategy.text()).toBe('Naked Single')
+    expect(strategy.attributes('data-step')).toBe('placement')
+    expect(wrapper.get('[data-testid="hint-explanation"]').text()).not.toBe('')
+    expect(marked(wrapper, 'reason')).toEqual([4, 10])
+    expect(marked(wrapper, 'losing')).toEqual([])
+    expect(marked(wrapper, 'target')).toEqual([5])
+    expect(wrapper.find('[data-testid="hint-fill"]').exists()).toBe(true)
+    expect(cell(wrapper, 5).text()).toBe('')
+
+    await wrapper.get('[data-testid="hint-fill"]').trigger('click')
+
+    expect(cell(wrapper, 5).text()).toBe('4')
+    expect(wrapper.findAll('[data-testid="violation-marker"]')).toHaveLength(0)
+  })
+
+  it('one press per lead-up elimination, in order', async () => {
+    const elimination = (n: number, justifying: number[], losing: number) => ({
+      kind: 'elimination' as const,
+      strategy: `Pair ${n}`,
+      removals: [{ cell: losing, digits: [1 as const] }],
+      justifying,
+      explanation: `Elimination ${n}.`,
+    })
+    nextHintIs({
+      kind: 'hint',
+      placement: {
+        kind: 'placement',
+        strategy: 'Placement',
+        cell: 5,
+        digit: 4,
+        justifying: [4, 10],
+        explanation: 'The placement.',
+        reads: [{ cell: 5 }],
+      },
+      leadUp: [elimination(1, [0, 1], 6), elimination(2, [8, 9], 5)],
+    })
+    const wrapper = mountApp()
+
+    await hintAt(wrapper, 1)
+    expect(marked(wrapper, 'target')).toEqual([5])
+    expect(advance(wrapper).text()).toBe('Why?')
+
+    for (const [n, reasons, losing] of [
+      [1, [0, 1], [6]],
+      [2, [8, 9], [5]],
+    ] as const) {
+      await advance(wrapper).trigger('click')
+      expect(wrapper.get('[data-testid="hint-strategy"]').text()).toBe(`Pair ${n}`)
+      expect(wrapper.get('[data-testid="hint-explanation"]').text()).toBe(`Elimination ${n}.`)
+      expect(marked(wrapper, 'reason')).toEqual(reasons)
+      expect(marked(wrapper, 'losing')).toEqual(losing)
+      expect(wrapper.find('[data-testid="hint-fill"]').exists()).toBe(false)
+    }
+
+    await advance(wrapper).trigger('click')
+    expect(wrapper.get('[data-testid="hint-strategy"]').text()).toBe('Placement')
+    expect(marked(wrapper, 'reason')).toEqual([4, 10])
+    expect(marked(wrapper, 'losing')).toEqual([])
+    expect(wrapper.find('[data-testid="hint-fill"]').exists()).toBe(true)
+    expect(findHint).toHaveBeenCalledTimes(1)
   })
 })
