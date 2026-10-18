@@ -62,13 +62,6 @@ The app is a static front end. There is no backend, and one should not be added
 without a ticket that argues for it — a constraint solver in a Web Worker would
 keep the app deployable as static files.
 
-```
-src/domain/      Pure TypeScript. No Vue, no DOM. Fully unit tested.
-src/components/  Vue components. Presentation only.
-src/App.vue      Composition root.
-e2e/             Playwright specs.
-```
-
 `src/domain/` is the load-bearing part and must stay free of framework imports.
 A `no-restricted-imports` override in `vite.config.ts` enforces this: the domain
 may import only its own modules, so Vue, `@/…` and `../…` fail `pnpm verify`.
@@ -82,12 +75,10 @@ resolves the given first, so **a given can never be overwritten**. Preserve that
 
 - TypeScript is strict, with `noUncheckedIndexedAccess`. Indexed reads are
   `T | undefined` — handle it rather than asserting it away.
-- Oxfmt owns formatting: no semicolons, single quotes, 100 columns. Don't argue with
-  it, run `pnpm check:fix`. Grid-shaped array literals are wrapped in
+- Oxfmt owns formatting. Don't argue with it, run `pnpm check:fix`. Grid-shaped array literals are wrapped in
   `// prettier-ignore` because their visual layout carries meaning.
 - Domain functions return **all** problems they find, not the first, so the UI can
   show them together.
-- Commits follow the rules in [Committing](#committing) below.
 
 ## Committing
 
