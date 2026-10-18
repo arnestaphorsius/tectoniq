@@ -1,10 +1,26 @@
 // @vitest-environment happy-dom
 import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import App from './App.vue'
+import { findHint, type HintResult } from './domain/hint'
 import { SAMPLE_PUZZLE, SAMPLE_SOLUTION } from './domain/samplePuzzle'
 
+/**
+ * The real `findHint`, wrapped so a test can hand the app a result no sample board
+ * gives: with the pair strategies, every legal board of the sample has a hint.
+ */
+vi.mock('./domain/hint', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./domain/hint')>()
+  return { ...actual, findHint: vi.fn(actual.findHint) }
+})
+
 enableAutoUnmount(afterEach)
+afterEach(() => vi.mocked(findHint).mockReset())
+
+/** The next hint asked for comes back as `result`, whatever the board. */
+function nextHintIs(result: HintResult) {
+  vi.mocked(findHint).mockReturnValueOnce(result)
+}
 
 function mountApp() {
   return mount(App, { attachTo: document.body })
@@ -237,6 +253,7 @@ describe('hint', () => {
   }
 
   const F_17 = { 17: 1 }
+  /** Where S1–S5 get stuck; the pair strategies take it on to 5=4. */
   const F_STUCK = { 13: 4, 14: 5, 15: 1, 16: 3, 17: 1, 18: 2 }
   const F_DEAD_2 = { 13: 1, 15: 5 }
   const VIOLATION = { 5: 3 }
@@ -372,6 +389,7 @@ describe('hint', () => {
   it('no hint is said plainly', async () => {
     const wrapper = mountApp()
     await enter(wrapper, F_STUCK)
+    nextHintIs({ kind: 'none' })
 
     await advance(wrapper).trigger('click')
 
@@ -398,6 +416,7 @@ describe('hint', () => {
       for (const dismiss of ['close', 'entry', 'screen'] as const) {
         const wrapper = mountApp()
         await enter(wrapper, entries)
+        if (entries === F_STUCK) nextHintIs({ kind: 'none' })
         await advance(wrapper).trigger('click')
         expect(wrapper.find('[data-testid="hint-message"]').exists()).toBe(true)
 
@@ -425,6 +444,7 @@ describe('hint', () => {
     await wrapper.get('[data-testid="hint-close"]').trigger('click')
 
     await enter(wrapper, F_STUCK)
+    nextHintIs({ kind: 'none' })
     await advance(wrapper).trigger('click')
     expect(status(wrapper).find('[data-testid="hint-message"]').exists()).toBe(true)
   })

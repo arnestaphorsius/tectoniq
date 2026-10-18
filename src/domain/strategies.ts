@@ -37,9 +37,9 @@ export interface Placement {
 }
 
 /**
- * Digits ruled out of cells without placing anything. None ship yet; the loop takes
- * them so that strategies such as naked pairs can be added without changing it. An
- * elimination's reasoning reads the whole candidate set of its justifying cells.
+ * Digits ruled out of cells without placing anything, such as the naked pairs in
+ * `nakedPairs.ts`. An elimination's reasoning reads the whole candidate set of its
+ * justifying cells.
  */
 export interface Elimination {
   readonly kind: 'elimination'

@@ -37,6 +37,16 @@ export const EXPLANATIONS = {
 
   hiddenSingle: (size: number) =>
     `${cageRule(size)} One digit this cage still needs has been ruled out of every other open cell in it, highlighted, so it can only go here.`,
+
+  /**
+   * Eliminations name their pair's digits: they are not the digit being hinted at.
+   * `losing` is how many cells are crossed out.
+   */
+  nakedPair: (size: number, [a, b]: readonly [number, number], losing: number) =>
+    `${cageRule(size)} The two highlighted cells can each only be ${a} or ${b}, so between them they take both. That rules ${a} and ${b} out of the crossed-out ${losing === 1 ? 'cell' : 'cells'} in this cage.`,
+
+  touchingPair: ([a, b]: readonly [number, number], losing: number) =>
+    `${touchRule} The two highlighted cells touch, so they can't be equal, and each can only be ${a} or ${b}. One of them is ${a} and the other ${b}, so ${losing === 1 ? 'the crossed-out cell, which touches both,' : 'the crossed-out cells, which touch both,'} can be neither.`,
 } as const
 
 /** What the hint panel says outside the explanation itself. */
