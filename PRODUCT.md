@@ -145,7 +145,7 @@ kind. None may be assumed to exist.
 
 - `src/domain/samplePuzzle.ts` — one real 4×5 sample puzzle with givens. This is the
   only puzzle content in the project.
-- `CLAUDE.md` — the authoritative statement of the rules, the architecture, and the
+- `AGENTS.md` — the authoritative statement of the rules, the architecture, and the
   development process.
 - `src/domain/hintCopy.ts` — every word a hint shows the player, including the
   explanation for each strategy.

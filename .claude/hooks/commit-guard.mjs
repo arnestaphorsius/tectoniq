@@ -1,5 +1,5 @@
 // PreToolUse hook for Bash: refuses a `git commit` that breaks the rules in
-// CLAUDE.md → Committing. Exit 2 blocks the call and hands stderr to Claude.
+// AGENTS.md → Committing. Exit 2 blocks the call and hands stderr to Claude.
 //
 // The message is read from the command itself (-m, -F, or a heredoc inside
 // -m), because a PreToolUse hook runs before git has assembled one.

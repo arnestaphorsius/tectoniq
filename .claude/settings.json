@@ -53,7 +53,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/commit-guard.mjs\"",
             "timeout": 180,
-            "statusMessage": "Checking commit against CLAUDE.md rules"
+            "statusMessage": "Checking commit against AGENTS.md rules"
           }
         ]
       }
