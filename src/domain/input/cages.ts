@@ -1,5 +1,5 @@
-import { adjacent, cageIds, cellCount, cellsInCage } from './grid'
-import { MAX_CAGE_SIZE, type CageId, type Digit, type Puzzle } from './types'
+import { adjacent, cageIds, cellCount, cellsInCage } from '@/domain/puzzle/grid'
+import { MAX_CAGE_SIZE, type CageId, type Digit, type Puzzle } from '@/domain/puzzle/types'
 
 /**
  * Cage drawing, as pure arithmetic over a `Puzzle`.

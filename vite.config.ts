@@ -183,8 +183,9 @@ export default defineConfig({
                   message: 'src/domain/ must stay free of Vue.',
                 },
                 {
-                  group: ['@/**', '../**'],
-                  message: 'src/domain/ imports only its own modules, never the UI layer.',
+                  group: ['@/**', '!@/domain/**', '../**'],
+                  message:
+                    'src/domain/ imports only its own modules, never the UI layer. Reach another domain directory through @/domain/, not ../.',
                 },
               ],
             },

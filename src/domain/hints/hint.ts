@@ -1,19 +1,21 @@
 import { candidatesFor } from './candidates'
-import { NAKED_PAIR, TOUCHING_PAIR } from './nakedPairs'
+import { NAKED_PAIR, TOUCHING_PAIR } from '@/domain/hints/strategies/pairs'
 import {
   CROWN,
   FULL_BLOCK,
   HIDDEN_SINGLE,
   NAKED_SINGLE,
   UNIQUE,
-  type Elimination,
-  type Placement,
-  type Reads,
-  type Removal,
-  type Strategy,
-} from './strategies'
-import type { Board, Digit, Puzzle } from './types'
-import { findViolations } from './validate'
+} from '@/domain/hints/strategies/singles'
+import type {
+  Elimination,
+  Placement,
+  Reads,
+  Removal,
+  Strategy,
+} from '@/domain/hints/strategies/step'
+import type { Board, Digit, Puzzle } from '@/domain/puzzle/types'
+import { findViolations } from '@/domain/puzzle/validate'
 
 /** The order hints are looked for in: easiest deduction first. */
 export const DEFAULT_STRATEGIES: readonly Strategy[] = [

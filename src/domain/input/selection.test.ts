@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { SAMPLE_PUZZLE } from './samplePuzzle'
+import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
 import { isWritable, nextSelection, toggledEntry, withEntry } from './selection'
-import { emptyBoard, type Puzzle } from './types'
+import { emptyBoard, type Puzzle } from '@/domain/puzzle/types'
 
 /** A single column, so left and right have nowhere to go. */
 // prettier-ignore

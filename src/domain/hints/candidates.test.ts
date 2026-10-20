@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { candidatesFor } from './candidates'
-import { F_17, F_START } from './hintFixtures'
-import { SAMPLE_PUZZLE } from './samplePuzzle'
+import { F_17, F_START } from './fixtures'
+import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
 
 describe('candidates', () => {
   it("from the sample's givens", () => {

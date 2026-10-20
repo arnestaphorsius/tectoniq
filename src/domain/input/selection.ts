@@ -1,6 +1,6 @@
-import { cellCount, coordOf, indexOf } from './grid'
-import type { Board, Digit, Puzzle } from './types'
-import { valueAt } from './validate'
+import { cellCount, coordOf, indexOf } from '@/domain/puzzle/grid'
+import type { Board, Digit, Puzzle } from '@/domain/puzzle/types'
+import { valueAt } from '@/domain/puzzle/validate'
 
 /** The four ways an arrow key can move the selection. */
 export type Direction = 'up' | 'down' | 'left' | 'right'
