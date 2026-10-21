@@ -1,20 +1,38 @@
 import { describe, expect, it } from 'vite-plus/test'
-import type { Candidates } from './candidates'
+import { candidatesFor, type Candidates } from './candidates'
 import { DEFAULT_STRATEGIES, findHint, type HintResult } from './hint'
 import {
   F_17,
+  F_A,
+  F_A_DEAD,
+  F_A_NONE,
   F_DEAD,
   F_DEAD_2,
   F_FULL_0_1_14,
   F_S3,
   F_START,
   F_STUCK,
+  PAIRS_PUZZLE,
   sampleWith,
 } from './hintFixtures'
-import { SAMPLE_PUZZLE, SAMPLE_SOLUTION } from './samplePuzzle'
-import type { Elimination, Placement, Strategy } from './strategies'
+import { NAKED_PAIR, TOUCHING_PAIR } from './nakedPairs'
+import { SAMPLE_PUZZLE, SAMPLE_SOLUTION, SAMPLE_SOLVED_BOARD } from './samplePuzzle'
+import {
+  CROWN,
+  FULL_BLOCK,
+  HIDDEN_SINGLE,
+  NAKED_SINGLE,
+  UNIQUE,
+  type Elimination,
+  type Placement,
+  type Strategy,
+} from './strategies'
 import { withEntry } from './selection'
-import type { Board, Digit } from './types'
+import type { Board, Digit, Puzzle } from './types'
+import { valueAt } from './validate'
+
+/** hints-1's five strategies, without the pairs. */
+const START_STRATEGIES = [FULL_BLOCK, UNIQUE, CROWN, NAKED_SINGLE, HIDDEN_SINGLE]
 
 interface Scripted {
   readonly cell: number
@@ -112,7 +130,7 @@ describe('loop', () => {
   })
 
   it('no strategy applies gives no hint', () => {
-    expect(hint(F_STUCK)).toEqual({ kind: 'none' })
+    expect(hint(F_STUCK, START_STRATEGIES)).toEqual({ kind: 'none' })
   })
 
   it('violations come first', () => {
@@ -183,27 +201,88 @@ describe('dead end', () => {
   })
 })
 
+describe('pair strategies', () => {
+  const stuckOn = (puzzle: Puzzle, board: Board) => {
+    const candidates = candidatesFor(puzzle, board)
+    for (const strategy of START_STRATEGIES) {
+      expect(strategy.apply(puzzle, board, candidates), strategy.name).toBeNull()
+    }
+    return candidates
+  }
+
+  it('an S1–S5 placement wins over a pair elimination', () => {
+    const candidates = candidatesFor(SAMPLE_PUZZLE, F_START)
+    expect(NAKED_PAIR.apply(SAMPLE_PUZZLE, F_START, candidates)).not.toBeNull()
+    expect(TOUCHING_PAIR.apply(SAMPLE_PUZZLE, F_START, candidates)).not.toBeNull()
+
+    const { placement, leadUp } = placementOf(hint(F_START))
+
+    expect(placement).toMatchObject({ cell: 17, digit: 1, strategy: 'Full Block' })
+    expect(leadUp).toEqual([])
+  })
+
+  it('default order ends with Naked Pairs A then B', () => {
+    expect(DEFAULT_STRATEGIES).toEqual([...START_STRATEGIES, NAKED_PAIR, TOUCHING_PAIR])
+  })
+
+  it('Naked Pairs A unlocks a hint where S1–S5 are stuck', () => {
+    stuckOn(PAIRS_PUZZLE, F_A)
+
+    const { placement, leadUp } = placementOf(findHint(PAIRS_PUZZLE, F_A))
+
+    expect(placement).toMatchObject({ cell: 6, digit: 1, strategy: 'Naked Single' })
+    expect(leadUp.map((step) => step.strategy)).toContain('Naked Pair')
+    expect(leadUp[0]).toMatchObject({
+      strategy: 'Naked Pair',
+      justifying: [10, 14],
+      removals: [
+        { cell: 6, digits: [2, 4] },
+        { cell: 7, digits: [2, 4] },
+        { cell: 11, digits: [2, 4] },
+      ],
+    })
+  })
+
+  it("Naked Pairs B unlocks the sample's stuck state", () => {
+    const candidates = stuckOn(SAMPLE_PUZZLE, F_STUCK)
+    expect(NAKED_PAIR.apply(SAMPLE_PUZZLE, F_STUCK, candidates)).toBeNull()
+    const pair = TOUCHING_PAIR.apply(SAMPLE_PUZZLE, F_STUCK, candidates)
+    expect(pair).toMatchObject({ justifying: [8, 9], removals: [{ cell: 5, digits: [1, 2] }] })
+
+    const { placement, leadUp } = placementOf(hint(F_STUCK))
+
+    expect(placement).toMatchObject({ cell: 5, digit: 4, strategy: 'Naked Single' })
+    expect([...placement.justifying].sort((x, y) => x - y)).toEqual([4, 10])
+    expect(leadUp).toEqual([pair])
+  })
+
+  it('eliminations leading nowhere give no hint found', () => {
+    const candidates = candidatesFor(PAIRS_PUZZLE, F_A_NONE)
+    expect(NAKED_PAIR.apply(PAIRS_PUZZLE, F_A_NONE, candidates)).not.toBeNull()
+    expect(candidates.some((set) => set?.size === 0)).toBe(false)
+
+    expect(findHint(PAIRS_PUZZLE, F_A_NONE)).toEqual({ kind: 'none' })
+  })
+
+  it("an elimination that empties a cell gives can't-complete", () => {
+    expect(findHint(PAIRS_PUZZLE, F_A_DEAD, START_STRATEGIES)).toEqual({ kind: 'none' })
+
+    expect(findHint(PAIRS_PUZZLE, F_A_DEAD)).toEqual({ kind: 'dead-end', cells: [14] })
+  })
+})
+
 describe('sample', () => {
-  it('hints from the givens stop at the stuck state', () => {
+  it('hints from the givens solve the sample', () => {
     let board: Board = F_START
-    const placed: [number, Digit, string][] = []
 
     for (let result = hint(board); result.kind === 'hint'; result = hint(board)) {
-      const { cell, digit, strategy } = result.placement
-      placed.push([cell, digit, strategy])
+      const { cell, digit } = result.placement
       expect(digit).toBe(SAMPLE_SOLUTION[cell])
       board = withEntry(board, cell, digit)
     }
 
-    expect(placed).toEqual([
-      [17, 1, 'Full Block'],
-      [15, 1, 'Unique'],
-      [16, 3, 'Unique'],
-      [18, 2, 'Unique'],
-      [14, 5, 'Full Block'],
-      [13, 4, 'Crown'],
-    ])
-    expect(hint(board)).toEqual({ kind: 'none' })
-    expect(board).toEqual(F_STUCK)
+    // A board holds entries only, so the givens are read through valueAt.
+    const shown = board.map((_, cell) => valueAt(SAMPLE_PUZZLE, board, cell))
+    expect(shown).toEqual(SAMPLE_SOLVED_BOARD)
   })
 })

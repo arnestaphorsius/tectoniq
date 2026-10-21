@@ -1,4 +1,5 @@
 import { candidatesFor } from './candidates'
+import { NAKED_PAIR, TOUCHING_PAIR } from './nakedPairs'
 import {
   CROWN,
   FULL_BLOCK,
@@ -21,6 +22,8 @@ export const DEFAULT_STRATEGIES: readonly Strategy[] = [
   CROWN,
   NAKED_SINGLE,
   HIDDEN_SINGLE,
+  NAKED_PAIR,
+  TOUCHING_PAIR,
 ]
 
 /**

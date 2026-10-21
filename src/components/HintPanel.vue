@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { HINT_MESSAGES } from '@/domain/hintCopy'
-import type { HintView } from './hintView'
+import { lastStage, shownStep, type HintView } from './hintView'
 
 /**
  * Shows a hint one stage at a time and says what the player can do next. It holds no
@@ -22,9 +22,17 @@ const emit = defineEmits<{
 
 const hint = computed(() => (props.view?.result.kind === 'hint' ? props.view.result : null))
 const stage = computed(() => props.view?.stage ?? 1)
+const step = computed(() => shownStep(props.view))
+const atLast = computed(() => hint.value !== null && stage.value === lastStage(hint.value))
 
-/** One button walks the stages, so its label says what pressing it reveals. */
-const advanceLabel = computed(() => (hint.value === null ? 'Hint' : 'Why?'))
+/**
+ * One button walks the stages, so its label says what pressing it reveals: the why
+ * after the target, and then, while an elimination is on show, the next step.
+ */
+const advanceLabel = computed(() => {
+  if (hint.value === null) return 'Hint'
+  return stage.value === 1 ? 'Why?' : 'Next'
+})
 
 const MESSAGES = {
   violations: HINT_MESSAGES.violations,
@@ -42,7 +50,7 @@ const message = computed(() => {
   <section class="hint" aria-label="Hint">
     <div class="hint-actions">
       <button
-        v-if="hint && stage === 2"
+        v-if="atLast"
         type="button"
         class="control primary"
         data-testid="hint-fill"
@@ -75,10 +83,12 @@ const message = computed(() => {
     <!-- Always present, so a screen reader is already listening when text arrives. -->
     <div class="hint-text" role="status" data-testid="hint-status">
       <template v-if="hint">
-        <p v-if="stage === 1">{{ HINT_MESSAGES.whereToLook }}</p>
+        <p v-if="step === null">{{ HINT_MESSAGES.whereToLook }}</p>
         <template v-else>
-          <p class="strategy" data-testid="hint-strategy">{{ hint.placement.strategy }}</p>
-          <p data-testid="hint-explanation">{{ hint.placement.explanation }}</p>
+          <p class="strategy" data-testid="hint-strategy" :data-step="step.kind">
+            {{ step.strategy }}
+          </p>
+          <p data-testid="hint-explanation">{{ step.explanation }}</p>
         </template>
       </template>
       <p v-else-if="message" data-testid="hint-message" :data-kind="message.kind">
