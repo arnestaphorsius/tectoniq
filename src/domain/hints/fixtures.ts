@@ -1,5 +1,5 @@
-import { SAMPLE_SOLVED_BOARD, SAMPLE_PUZZLE } from './samplePuzzle'
-import { emptyBoard, type Board, type Digit, type Puzzle } from './types'
+import { SAMPLE_SOLVED_BOARD, SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { emptyBoard, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 
 /**
  * Board states that the hint specs are written against, named as in

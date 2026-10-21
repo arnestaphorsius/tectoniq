@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vite-plus/test'
-import { SAMPLE_PUZZLE } from '@/domain/samplePuzzle'
-import { emptyBoard, type Board, type Puzzle } from '@/domain/types'
-import { findViolations, type Violation } from '@/domain/validate'
+import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { emptyBoard, type Board, type Puzzle } from '@/domain/puzzle/types'
+import { findViolations, type Violation } from '@/domain/puzzle/validate'
 import PuzzleGrid from './PuzzleGrid.vue'
 
 enableAutoUnmount(afterEach)

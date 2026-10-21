@@ -14,22 +14,20 @@ import {
   F_STUCK,
   PAIRS_PUZZLE,
   sampleWith,
-} from './hintFixtures'
-import { NAKED_PAIR, TOUCHING_PAIR } from './nakedPairs'
-import { SAMPLE_PUZZLE, SAMPLE_SOLUTION, SAMPLE_SOLVED_BOARD } from './samplePuzzle'
+} from './fixtures'
+import { NAKED_PAIR, TOUCHING_PAIR } from '@/domain/hints/strategies/pairs'
+import { SAMPLE_PUZZLE, SAMPLE_SOLUTION, SAMPLE_SOLVED_BOARD } from '@/domain/puzzle/samplePuzzle'
 import {
   CROWN,
   FULL_BLOCK,
   HIDDEN_SINGLE,
   NAKED_SINGLE,
   UNIQUE,
-  type Elimination,
-  type Placement,
-  type Strategy,
-} from './strategies'
-import { withEntry } from './selection'
-import type { Board, Digit, Puzzle } from './types'
-import { valueAt } from './validate'
+} from '@/domain/hints/strategies/singles'
+import type { Elimination, Placement, Strategy } from '@/domain/hints/strategies/step'
+import { withEntry } from '@/domain/input/selection'
+import type { Board, Digit, Puzzle } from '@/domain/puzzle/types'
+import { valueAt } from '@/domain/puzzle/validate'
 
 /** hints-1's five strategies, without the pairs. */
 const START_STRATEGIES = [FULL_BLOCK, UNIQUE, CROWN, NAKED_SINGLE, HIDDEN_SINGLE]

@@ -8,10 +8,10 @@ import {
   SIZE_PRESETS,
   sizeProblem,
   withCells,
-} from '@/domain/cages'
-import { cageEdges, cellCount } from '@/domain/grid'
-import { MAX_CAGE_SIZE, type Puzzle } from '@/domain/types'
-import { validatePuzzle, type PuzzleProblem } from '@/domain/validate'
+} from '@/domain/input/cages'
+import { cageEdges, cellCount } from '@/domain/puzzle/grid'
+import { MAX_CAGE_SIZE, type Puzzle } from '@/domain/puzzle/types'
+import { validatePuzzle, type PuzzleProblem } from '@/domain/puzzle/validate'
 
 const props = defineProps<{ initialPuzzle?: Puzzle | undefined }>()
 

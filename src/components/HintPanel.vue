@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { HINT_MESSAGES } from '@/domain/hintCopy'
+import { HINT_MESSAGES } from '@/domain/hints/copy'
 import { lastStage, shownStep, type HintView } from './hintView'
 
 /**

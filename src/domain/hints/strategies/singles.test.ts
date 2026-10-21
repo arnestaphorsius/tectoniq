@@ -1,18 +1,10 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { candidatesFor, type Candidates } from './candidates'
-import { F_17, F_FULL_0, F_S3, F_S4, F_START, F_STUCK } from './hintFixtures'
-import { SAMPLE_PUZZLE } from './samplePuzzle'
-import {
-  CROWN,
-  FULL_BLOCK,
-  HIDDEN_SINGLE,
-  NAKED_SINGLE,
-  UNIQUE,
-  type Placement,
-  type Step,
-  type Strategy,
-} from './strategies'
-import type { Board, Digit } from './types'
+import { candidatesFor, type Candidates } from '@/domain/hints/candidates'
+import { F_17, F_FULL_0, F_S3, F_S4, F_START, F_STUCK } from '@/domain/hints/fixtures'
+import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { CROWN, FULL_BLOCK, HIDDEN_SINGLE, NAKED_SINGLE, UNIQUE } from './singles'
+import type { Placement, Step, Strategy } from './step'
+import type { Board, Digit } from '@/domain/puzzle/types'
 
 /** Runs `strategy` on the sample, against `candidates` or the board's own. */
 function run(strategy: Strategy, board: Board, candidates?: Candidates): Step | null {

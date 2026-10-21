@@ -64,7 +64,17 @@ keep the app deployable as static files.
 
 `src/domain/` is the load-bearing part and must stay free of framework imports.
 A `no-restricted-imports` override in `vite.config.ts` enforces this: the domain
-may import only its own modules, so Vue, `@/…` and `../…` fail `pnpm verify`.
+may import only its own modules, so Vue, `@/…` outside `@/domain/` and `../…`
+fail `pnpm verify`. A module in the same directory is `./file`; anything else in
+the domain is `@/domain/<dir>/file`.
+
+| Directory                      | Holds                                                     |
+| ------------------------------ | --------------------------------------------------------- |
+| `src/domain/puzzle/`           | The model and its rules: types, grid geometry, validation |
+| `src/domain/input/`            | Pure edits from input: drawing cages, entering digits     |
+| `src/domain/hints/`            | The hint loop, candidates and all hint wording            |
+| `src/domain/hints/strategies/` | The strategies, and the `Step` and `Strategy` types       |
+
 Cells are addressed by a flat row-major **index** (`row * width + col`), which keeps
 cell identity a plain number and makes violations cheap to compare and render.
 

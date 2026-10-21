@@ -4,11 +4,11 @@ import HintPanel from './components/HintPanel.vue'
 import { lastStage, marksFor, type HintView } from './components/hintView'
 import PuzzleEditor from './components/PuzzleEditor.vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
-import { findHint } from './domain/hint'
-import { SAMPLE_PUZZLE } from './domain/samplePuzzle'
-import { withEntry } from './domain/selection'
-import { emptyBoard, type Board, type Digit, type Puzzle } from './domain/types'
-import { findViolations, isSolved } from './domain/validate'
+import { findHint } from '@/domain/hints/hint'
+import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { withEntry } from '@/domain/input/selection'
+import { emptyBoard, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
+import { findViolations, isSolved } from '@/domain/puzzle/validate'
 
 // The board is the app's state; the grid owns only which cell is selected.
 const board = ref<Board>(emptyBoard(SAMPLE_PUZZLE))
