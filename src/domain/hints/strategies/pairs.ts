@@ -1,8 +1,8 @@
-import type { Candidates } from './candidates'
-import { cellCount, cellsInCage, touching } from './grid'
-import { EXPLANATIONS } from './hintCopy'
-import type { Removal, Strategy } from './strategies'
-import type { Digit, Puzzle } from './types'
+import type { Candidates } from '@/domain/hints/candidates'
+import { cellCount, cellsInCage, touching } from '@/domain/puzzle/grid'
+import { EXPLANATIONS } from '@/domain/hints/copy'
+import type { Removal, Strategy } from './step'
+import type { Digit, Puzzle } from '@/domain/puzzle/types'
 
 type Pair = readonly [number, number]
 

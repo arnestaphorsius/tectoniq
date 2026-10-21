@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { cageEdges } from '@/domain/grid'
+import { cageEdges } from '@/domain/puzzle/grid'
 import type { HintMarks } from './hintView'
-import { isWritable, nextSelection, toggledEntry, type Direction } from '@/domain/selection'
-import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/types'
-import { valueAt, type Violation } from '@/domain/validate'
+import { isWritable, nextSelection, toggledEntry, type Direction } from '@/domain/input/selection'
+import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
+import { valueAt, type Violation } from '@/domain/puzzle/validate'
 
 const props = withDefaults(
   defineProps<{

@@ -1,5 +1,5 @@
-import type { HintResult } from '@/domain/hint'
-import type { Step } from '@/domain/strategies'
+import type { HintResult } from '@/domain/hints/hint'
+import type { Step } from '@/domain/hints/strategies/step'
 
 /**
  * Cells a hint points at. The target is where the digit goes, the reasons are the

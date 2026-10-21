@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { candidatesFor, type Candidates } from './candidates'
-import { cellCount } from './grid'
-import { F_STUCK } from './hintFixtures'
-import { NAKED_PAIR, TOUCHING_PAIR } from './nakedPairs'
-import { SAMPLE_PUZZLE } from './samplePuzzle'
-import type { Elimination, Step, Strategy } from './strategies'
-import { emptyBoard, type Digit } from './types'
+import { candidatesFor, type Candidates } from '@/domain/hints/candidates'
+import { cellCount } from '@/domain/puzzle/grid'
+import { F_STUCK } from '@/domain/hints/fixtures'
+import { NAKED_PAIR, TOUCHING_PAIR } from './pairs'
+import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import type { Elimination, Step, Strategy } from './step'
+import { emptyBoard, type Digit } from '@/domain/puzzle/types'
 
 /*
  * Most maps here are written by hand on the sample's cage layout, with every cell

@@ -8,9 +8,9 @@ import {
   sizeProblem,
   withCells,
 } from './cages'
-import { cageIds, cageSize, isCageContiguous } from './grid'
-import { MAX_CAGE_SIZE, type Puzzle } from './types'
-import { validatePuzzle, type PuzzleProblem } from './validate'
+import { cageIds, cageSize, isCageContiguous } from '@/domain/puzzle/grid'
+import { MAX_CAGE_SIZE, type Puzzle } from '@/domain/puzzle/types'
+import { validatePuzzle, type PuzzleProblem } from '@/domain/puzzle/validate'
 
 /**
  * A 5×5 nobody has drawn on, indexed

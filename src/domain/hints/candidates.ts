@@ -1,6 +1,6 @@
-import { cageSize, cellCount, cellsInCage, touching } from './grid'
-import { isDigit, type Board, type Digit, type Puzzle } from './types'
-import { valueAt } from './validate'
+import { cageSize, cellCount, cellsInCage, touching } from '@/domain/puzzle/grid'
+import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
+import { valueAt } from '@/domain/puzzle/validate'
 
 /**
  * The digits each cell could still take, row-major like the board: `null` for a cell

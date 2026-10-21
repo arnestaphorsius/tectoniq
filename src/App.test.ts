@@ -2,15 +2,15 @@
 import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import App from './App.vue'
-import { findHint, type HintResult } from './domain/hint'
-import { SAMPLE_PUZZLE, SAMPLE_SOLUTION } from './domain/samplePuzzle'
+import { findHint, type HintResult } from '@/domain/hints/hint'
+import { SAMPLE_PUZZLE, SAMPLE_SOLUTION } from '@/domain/puzzle/samplePuzzle'
 
 /**
  * The real `findHint`, wrapped so a test can hand the app a result no sample board
  * gives: with the pair strategies, every legal board of the sample has a hint.
  */
-vi.mock('./domain/hint', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./domain/hint')>()
+vi.mock('@/domain/hints/hint', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/domain/hints/hint')>()
   return { ...actual, findHint: vi.fn(actual.findHint) }
 })
 
