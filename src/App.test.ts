@@ -55,6 +55,15 @@ describe('selection', () => {
 
     expect(wrapper.findAll('[aria-selected="true"]')).toHaveLength(0)
   })
+
+  it('a click on the number pad keeps the selection', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+
+    await wrapper.get('[data-testid="number-pad"]').trigger('click')
+
+    expect(cell(wrapper, 0).attributes('aria-selected')).toBe('true')
+  })
 })
 
 describe('digit entry', () => {
@@ -178,6 +187,161 @@ describe('violation marker', () => {
     await cell(wrapper, 0).trigger('keydown', { key: 'Backspace' })
 
     expect(hasMarker(wrapper, 0)).toBe(false)
+  })
+})
+
+describe('number pad', () => {
+  const key = (wrapper: VueWrapper, digit: number) => wrapper.get(`[data-digit="${digit}"]`)
+  const erase = (wrapper: VueWrapper) => wrapper.get('[data-testid="pad-erase"]')
+
+  it('is never disabled', async () => {
+    const wrapper = mountApp()
+    const disabled = () =>
+      wrapper
+        .findAll('[data-testid="number-pad"] button')
+        .filter((found) => found.attributes('disabled') !== undefined)
+
+    expect(disabled()).toHaveLength(0)
+    // Cell 4 is the sample's given 3.
+    await cell(wrapper, 4).trigger('click')
+    expect(disabled()).toHaveLength(0)
+  })
+
+  it('a press with nothing selected changes nothing', async () => {
+    const wrapper = mountApp()
+    const before = digits(wrapper)
+
+    await key(wrapper, 2).trigger('click')
+    await erase(wrapper).trigger('click')
+
+    expect(digits(wrapper)).toEqual(before)
+  })
+
+  it('a press on a selected given changes nothing', async () => {
+    const wrapper = mountApp()
+    const before = digits(wrapper)
+    await cell(wrapper, 4).trigger('click')
+
+    await key(wrapper, 2).trigger('click')
+    await erase(wrapper).trigger('click')
+
+    expect(digits(wrapper)).toEqual(before)
+  })
+
+  it('writes the pressed digit into the selected cell, which stays selected', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+
+    await key(wrapper, 2).trigger('click')
+
+    expect(cell(wrapper, 0).text()).toBe('2')
+    expect(cell(wrapper, 0).attributes('aria-selected')).toBe('true')
+  })
+
+  it('pressing the digit already in the cell clears it, like the keyboard', async () => {
+    const wrapper = mountApp()
+    await pressOn(wrapper, 0, '2')
+
+    await key(wrapper, 2).trigger('click')
+
+    expect(cell(wrapper, 0).text()).toBe('')
+  })
+
+  it('Erase clears the selected cell', async () => {
+    const wrapper = mountApp()
+    await pressOn(wrapper, 0, '2')
+
+    await erase(wrapper).trigger('click')
+
+    expect(cell(wrapper, 0).text()).toBe('')
+  })
+
+  it('a digit too big for its cage is written and flagged, as from the keyboard', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+
+    // Cell 0 is in a four-cell cage.
+    await key(wrapper, 5).trigger('click')
+
+    expect(cell(wrapper, 0).text()).toBe('5')
+    expect(hasMarker(wrapper, 0)).toBe(true)
+  })
+
+  it('a pointer press gives focus back to the selected cell', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+    const pressed = key(wrapper, 2).element as HTMLElement
+    pressed.focus()
+
+    // `detail` is the click count a pointer reports; a key press reports 0.
+    await key(wrapper, 2).trigger('click', { detail: 1 })
+
+    expect(document.activeElement).toBe(cell(wrapper, 0).element)
+  })
+
+  it('a key press on a pad key leaves focus on the pad', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+    const pressed = key(wrapper, 2).element as HTMLElement
+    pressed.focus()
+
+    await key(wrapper, 2).trigger('click', { detail: 0 })
+
+    expect(cell(wrapper, 0).text()).toBe('2')
+    expect(document.activeElement).toBe(pressed)
+  })
+
+  it('a digit typed with focus on the pad goes into the selected cell', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+    const pressed = key(wrapper, 2).element as HTMLElement
+    pressed.focus()
+
+    await key(wrapper, 2).trigger('keydown', { key: '3' })
+
+    expect(cell(wrapper, 0).text()).toBe('3')
+    expect(document.activeElement).toBe(pressed)
+  })
+
+  it('Backspace with focus on the pad clears the selected cell', async () => {
+    const wrapper = mountApp()
+    await pressOn(wrapper, 0, '2')
+    ;(erase(wrapper).element as HTMLElement).focus()
+
+    await erase(wrapper).trigger('keydown', { key: 'Backspace' })
+
+    expect(cell(wrapper, 0).text()).toBe('')
+  })
+
+  it('an arrow key with focus on the pad moves the selection, and focus with it', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+    ;(key(wrapper, 2).element as HTMLElement).focus()
+
+    await key(wrapper, 2).trigger('keydown', { key: 'ArrowRight' })
+
+    expect(cell(wrapper, 1).attributes('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(cell(wrapper, 1).element)
+  })
+
+  it('Enter on a pad key is left to the button', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+
+    key(wrapper, 2).element.dispatchEvent(enter)
+
+    expect(enter.defaultPrevented).toBe(false)
+  })
+
+  it('leaving the screen drops the selection', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+
+    await wrapper.get('[data-testid="open-editor"]').trigger('click')
+    await wrapper.get('[data-testid="open-play"]').trigger('click')
+
+    expect(wrapper.findAll('[aria-selected="true"]')).toHaveLength(0)
   })
 })
 

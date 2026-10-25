@@ -63,8 +63,8 @@ The workflow the product exists to serve:
 **Device class is deliberately undecided.** Phone, tablet, and desktop are to be
 treated as equal; no future work may privilege one over the others without a
 decision that changes this line. Note that both input models are already assumed by
-the code — the play grid is keyboard-driven, the cage editor is pointer/touch-drag —
-so neither is speculative.
+the code — the play grid takes the keyboard and a number pad, the cage editor is
+pointer/touch-drag — so neither is speculative.
 
 Terminology in use, and the only vocabulary for these things: **cage** (a region of
 1–5 cells), **given** (a printed clue, never overwritable), **entry** (a digit the
@@ -87,6 +87,9 @@ without it the cages would be independent.
 - Playing one hard-coded sample puzzle: select a cell (pointer or arrow keys), enter
   digits 1–5, clear with Backspace/Delete, press a digit twice to take it back.
   Givens can be selected but never overwritten.
+- A number pad on the play screen, so digits can be entered and erased by pointer or
+  touch, with the same effect as the keyboard. It sits under the grid, and beside it
+  on a viewport 66.5rem (1064px) wide or more.
 - Violations are flagged per cell as they occur, on **both** ends of a conflict, so
   the player can see what their digit collided with. All problems are reported
   together, never just the first.

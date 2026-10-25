@@ -91,7 +91,8 @@ more; it is a considered off-white, not a stain. The distinction earns its keep 
 moment someone proposes a texture: if the change makes the app look _older_, it has
 misread the North Star.
 
-Density is low and the composition is a single centred column. Nothing competes with
+Density is low and the composition is a single centred column, with one exception: on
+a wide screen the number pad sits beside the play grid. Nothing competes with
 the grid, because the grid is the only thing on screen a person actually came for.
 Interaction is **precise and unhurried** — every mark lands exactly where it should,
 nothing is springy, nothing is celebrated. There are currently no transitions or
@@ -182,13 +183,16 @@ colour alone.
 
 ## Layout
 
-A single centred column, and nothing else. `body` is plain block layout — the page is
-top-anchored rather than centred in the viewport, because a stack whose height changes
-with the grid moved the puzzle up and down the screen every time you switched screens
-or resized it. `.page` is `max-width: var(--measure)` (52rem — the 800px grid ceiling
+A single centred column, with one exception: the play screen's number pad, which sits
+beside the grid when the viewport is wide enough (see The Pad Beside Rule). `body` is
+plain block layout — the page is top-anchored rather than centred in the viewport,
+because a stack whose height changes with the grid moved the puzzle up and down the
+screen every time you switched screens or resized it. `.page` is `max-width: var(--measure)` (52rem — the 800px grid ceiling
 plus the page's two 1rem gutters, so the content box is exactly 800px) with `margin-inline:
-auto`, `grid-template-columns: minmax(0, 1fr)`, and `2.5rem 1rem` padding. There is no
-sidebar, no shell, and no header chrome beyond the title and tagline.
+auto`, `grid-template-columns: minmax(0, 1fr)`, and `2.5rem 1rem` padding. The play
+screen widens it to `--measure-play` (65rem) so that the pad's column is _added_ to the
+grid's 800px rather than taken out of it. There is no sidebar, no shell, and no header
+chrome beyond the title and tagline; the pad is a control on the puzzle, not a sidebar.
 
 Every screen is **two blocks**: the chrome you navigate with (title, tagline, screen
 switcher) and the work you came for (the grid, and whatever it says about itself). They
@@ -216,17 +220,59 @@ while you draw it that it will be while you play it. The 4px is the grid's own 2
 on each side. Digit size and the violation marker are both derived from `--cell`, so a
 cell keeps its proportions as it narrows.
 
-There are **two width-based branches in the codebase and no more**: this `clamp`, and the
-frame's `max-width`. The cap sits on the frame rather than as a second `min()` term in the
+There are **three width-based branches in the codebase and no more**: this `clamp`, the
+frame's `max-width`, and the one width media query that moves the number pad beside the
+grid. The cap sits on the frame rather than as a second `min()` term in the
 clamp because `100cqi` _is_ the frame's inline size — capping the frame makes the ceiling
 bind through arithmetic that is already there, and keeps the thing that scrolls the same
-as the thing that centres. There is still no width media query anywhere, and
-`prefers-color-scheme` is still the only `@media` rule.
+as the thing that centres. Apart from the pad's query, `prefers-color-scheme` is the only
+`@media` rule.
 
 ### Named Rules
 
-**The One Column Rule.** Every screen is a single centred column of stacked blocks.
-There is no multi-column layout, no sidebar, and no dashboard shell in this product.
+**The One Column Rule.** Every screen is a single centred column of stacked blocks, with
+exactly one exception, The Pad Beside Rule below. There is no other multi-column layout,
+no sidebar, and no dashboard shell in this product. The exception does not license a
+second one: anything else proposed beside the grid needs its own decision.
+
+**The Pad Beside Rule.** At a viewport of **66.5rem (1064px) and wider**, the play screen's
+number pad sits to the right of the grid, top-aligned with it, `--pad-gap` (`--space-lg`)
+away — the step that separates a control group from its grid. Below that it sits under the grid, between
+the grid and the hint panel. The hint panel stays under the grid in both layouts: it
+explains the grid, so it belongs to the grid's column, not the pad's.
+
+The breakpoint is not a guess at what "desktop" means. `--measure-play` is the narrowest
+page on which the grid can still reach its full 800px with the pad beside it, and
+`src/style.css` sums it from the tokens it is made of, so it follows any of them:
+
+```
+--grid-max 50rem + --pad-gap 1.5rem + --pad-width 11.5rem + 2 × --space-md 1rem = 65rem
+```
+
+The breakpoint is that plus **1.5rem of room for a scrollbar**. A media query measures
+the viewport including a classic scrollbar (17px on Windows, or on macOS set to always
+show them), which the page cannot use. At exactly 65rem such a page would be 17px too
+narrow and scroll sideways.
+
+That is what keeps the identical-size rule above intact. Below the breakpoint the pad
+is under the grid, so the grid has the whole column, exactly as in the editor; at the
+breakpoint and up both grids are at their ceilings. A cage is therefore the same size
+in both screens at every viewport. A lower breakpoint would put the pad beside a grid
+that is smaller than the editor's, and must not be chosen without giving up that rule.
+Custom properties do not work in media queries, so the 66.5rem is a literal kept in step
+by hand. `e2e/number-pad.spec.ts` fails if it no longer clears `--measure-play` by a
+scrollbar. A `rem` in a media query is the browser's default font size, not the page's,
+which is the behaviour wanted here: the layout follows the reader's zoom setting.
+
+Beside the pad the grid's frame is fitted to the grid instead of filling its column, or
+a narrow grid would sit in the middle of an 800px column with the pad far off at its
+edge. This needs no measuring: from the breakpoint up the page is exactly
+`--measure-play` wide, so the grid's column is always `--grid-max`. The play screen sets
+`--grid-fit: 1`, and the grid then gives its frame a `min-width` of the cell's own clamp
+evaluated for that column — the grid's sizing stays inside the grid, read from the
+puzzle it is given. The hint panel's column is then the grid's width. The hint gives no width of its own to that
+column (`width: 0; min-width: 100%`), so a long sentence can never widen it and push the
+grid and pad sideways.
 
 **The Cell Floor Rule.** A grid cell fills the column it is given, up to its fixed
 ceiling, and never renders below `--cell-floor` (1.75rem / 28px). Below that the
@@ -313,6 +359,8 @@ decision serves.
 - **Player entry:** Entry Blue, weight 400, `tabular-nums`.
 - **Given:** Ink, weight 600. Selectable but never writable.
 - **Selected:** `outline: 3px solid var(--entry)` with `outline-offset: -3px`, so the ring sits _inside_ the cell and never disturbs the grid's geometry. Selection and keyboard focus are the same thing — the selected cell carries `tabindex="0"` and holds real DOM focus.
+- **Candidates** _(specified, not built yet)_: digits the player has marked as possible in an empty cell. Each digit has a fixed place, like the five on a die — 1 top-left, 2 top-right, 3 centre, 4 bottom-left, 5 bottom-right — so the eye always looks in the same spot for the same digit. They are Entry Blue, because the player wrote them (The Two Hands Rule), at weight 400 and a size derived from `--cell`. A cell holding a digit shows no candidates; placing the digit clears that cell's own candidates and nobody else's.
+- **Known limit, recorded:** at the 1.75rem cell floor (a 12-wide grid on a phone) candidates are barely legible. Scaling them up would break the cell's proportions, so this is accepted rather than solved.
 
 ### Violation Marker (signature component)
 
@@ -340,6 +388,51 @@ sizes are one choice. The size the grid is currently at is marked the way the
 screen switcher marks the current screen — weight 600, an Ink stroke, and a 2px Ink
 rule along the bottom drawn inside the button — plus `aria-current`. Presets and
 the custom fields share one line where there is room, and wrap to two on a phone.
+
+### Number Pad
+
+The play screen's way to enter digits by pointer or touch, after the NYT Sudoku pad. It is
+built entirely from `.control`; it adds no style of its own. Without it a phone could not
+enter a digit at all, because tapping a cell opens no keyboard.
+
+- **Contents:** the digits **1–5** and **Erase**. All five digits are always enabled,
+  whatever the selected cell's cage size, because the keyboard accepts them too and the
+  violation marker is what says a digit is too big. A key does exactly what the same key
+  on the keyboard does, including taking a digit back when it is pressed twice.
+- **Erase** is drawn as ⌫ so it fits a square key at phone width, and is named "Erase"
+  by `aria-label` and `title`.
+- **Beside the grid** (66.5rem and wider): an 11.5rem (`--pad-width`) column of 1 2 3 /
+  4 5 Erase, three columns of 3.5rem (`--pad-key-beside`) square keys, `--space-xs`
+  apart.
+- **Under the grid:** one row of 1–5 and Erase, six 2.5rem square keys `--space-xs` apart.
+  That is 17.5rem (280px), which fits a 320px viewport inside the page's gutters.
+- **One branch, not two.** The pad's columns and key size are the custom properties
+  `--pad-columns` and `--pad-key`, defaulting to the row. The play screen's one media
+  query sets them, so the pad has no width branch of its own.
+- **Never disabled.** A press with no cell selected, or on a given, does nothing — the
+  same as the keyboard. Disabling the pad instead made all six keys grey out and
+  return every time the selection crossed a given, which drew the eye off the board
+  while the player was only moving around it. The given's own Ink and weight already
+  say why nothing happened.
+- **One write path.** The pad writes through the grid's own `press()`, the same function
+  the keyboard uses, so a pad key and a keyboard key cannot come to behave differently.
+- **It never takes the selection away.** A click on the pad is exempt from the
+  click-outside rule that drops the selection. After a pointer press, focus goes back
+  to the selected cell, so the arrow keys keep working after a click. A key reached
+  with Tab and activated from the keyboard keeps focus, so a keyboard user stays on the
+  pad. Focus is handed back rather than never taken: preventing the `mousedown` also
+  stops Firefox from showing the key as pressed. Handing it back does not scroll, or
+  each tap on the pad below a grid would scroll a phone back up to it.
+- **The keyboard works from the pad.** With focus on a pad key, digits, Backspace,
+  Delete, the arrow keys and Escape go to the grid's own key handler, so a key does the
+  same wherever focus is. A digit leaves focus on the pad; an arrow key moves the
+  selection and focus follows it into the grid, because selection and focus are the
+  same thing. Enter, Space and Tab stay with the pad.
+- **Not built yet:** a **Normal | Candidate** mode toggle across the top, a segmented
+  pair marked like the editor's presets (weight 600, Ink stroke, 2px inner bottom rule,
+  plus `aria-pressed`). In Candidate mode each digit on the pad moves to the place its
+  candidate takes in a cell (the die positions above), so the pad shows what pressing it
+  will draw.
 
 ### Drawing feedback
 
