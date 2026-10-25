@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import HintPanel from './components/HintPanel.vue'
 import { lastStage, marksFor, type HintView } from './components/hintView'
+import NumberPad from './components/NumberPad.vue'
 import PuzzleEditor from './components/PuzzleEditor.vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
 import { findHint } from '@/domain/hints/hint'
@@ -10,9 +11,14 @@ import { withEntry } from '@/domain/input/selection'
 import { emptyBoard, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 import { findViolations, isSolved } from '@/domain/puzzle/validate'
 
-// The board is the app's state; the grid owns only which cell is selected.
 const board = ref<Board>(emptyBoard(SAMPLE_PUZZLE))
 const violations = computed(() => findViolations(SAMPLE_PUZZLE, board.value))
+
+/**
+ * The selected cell is held here rather than in the grid, because the number pad
+ * writes to it too. The keyboard still goes through the grid.
+ */
+const selected = ref<number | null>(null)
 
 /**
  * One screen shows at a time. The drawn puzzle is held here rather than in the
@@ -31,10 +37,55 @@ const hint = shallowRef<HintView | null>(null)
 const solved = computed(() => isSolved(SAMPLE_PUZZLE, board.value))
 
 watch([board, screen], () => (hint.value = null))
+watch(screen, () => (selected.value = null))
 
 function onEntry(cell: number, digit: Digit | null) {
   board.value = withEntry(board.value, cell, digit)
 }
+
+/**
+ * The pad writes through the grid, so a pad key is the same key on the keyboard —
+ * pressing twice included, and doing nothing with no cell selected or on a given.
+ */
+const grid = ref<InstanceType<typeof PuzzleGrid> | null>(null)
+const padArea = ref<HTMLElement | null>(null)
+
+/**
+ * A pointer press on a pad key focuses the key, which would leave the arrow keys
+ * with nothing to move. Focus goes back to the selected cell — but only for a
+ * pointer (`detail` counts its clicks; a key press activating the button reports
+ * 0), so someone who tabbed to the pad keeps their place on it. Focus is handed
+ * back rather than never taken, because preventing the `mousedown` that takes it
+ * also stops Firefox from showing the key as pressed.
+ */
+function onPadClick(event: MouseEvent) {
+  if (event.detail > 0) grid.value?.focusSelected({ preventScroll: true })
+}
+
+/**
+ * With focus on a pad key, the keyboard still plays the grid: digits, Backspace,
+ * the arrow keys and Escape go to the grid's own handler, so a key does the same
+ * wherever focus is. An arrow key moves the selection, and focus follows it into the
+ * grid. Enter, Space and Tab are not the grid's and stay with the pad, which is how
+ * its keys are pressed and left.
+ */
+function onPadKeydown(event: KeyboardEvent) {
+  grid.value?.handleKey(event)
+}
+
+/**
+ * A click anywhere but the grid or the pad drops the selection. The pad is spared
+ * because pressing it is how a pointer writes to the selected cell.
+ */
+function onDocumentClick(event: MouseEvent) {
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (grid.value?.contains(target) || padArea.value?.contains(target)) return
+  selected.value = null
+}
+
+onMounted(() => document.addEventListener('click', onDocumentClick))
+onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
 
 function advanceHint() {
   const current = hint.value
@@ -52,7 +103,7 @@ function fillHint() {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page" :class="{ playing: screen === 'play' }">
     <div class="chrome">
       <header>
         <h1>Tectoniq</h1>
@@ -82,21 +133,31 @@ function fillHint() {
     </div>
 
     <div v-if="screen === 'play'" class="work">
-      <PuzzleGrid
-        :puzzle="SAMPLE_PUZZLE"
-        :board="board"
-        :violations="violations"
-        :marks="marksFor(hint)"
-        @entry="onEntry"
-      />
+      <div class="area-grid">
+        <PuzzleGrid
+          ref="grid"
+          v-model:selected="selected"
+          :puzzle="SAMPLE_PUZZLE"
+          :board="board"
+          :violations="violations"
+          :marks="marksFor(hint)"
+          @entry="onEntry"
+        />
+      </div>
 
-      <HintPanel
-        :view="hint"
-        :solved="solved"
-        @advance="advanceHint"
-        @fill="fillHint"
-        @close="hint = null"
-      />
+      <div ref="padArea" class="area-pad" @click="onPadClick" @keydown="onPadKeydown">
+        <NumberPad @digit="(digit) => grid?.press(digit)" @erase="grid?.press(null)" />
+      </div>
+
+      <div class="area-hint">
+        <HintPanel
+          :view="hint"
+          :solved="solved"
+          @advance="advanceHint"
+          @fill="fillHint"
+          @close="hint = null"
+        />
+      </div>
     </div>
 
     <PuzzleEditor v-else :initial-puzzle="drawn" @change="(puzzle) => (drawn = puzzle)" />
@@ -117,6 +178,11 @@ function fillHint() {
   justify-items: center;
   gap: var(--space-xl);
   padding: var(--space-xl) var(--space-md);
+}
+
+/* Room for the pad beside the grid, added to the grid's 800px rather than taken out. */
+.page.playing {
+  max-width: var(--measure-play);
 }
 
 .chrome {
@@ -180,12 +246,67 @@ h1 {
   font-weight: 600;
 }
 
-/* The hint panel acts on the grid, so it is held close to it. */
+/*
+ * The hint panel acts on the grid, so it is held close to it. On a narrow screen
+ * the pad sits between them, under the grid where a thumb can reach it.
+ */
 .work {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: var(--space-sm);
+}
+
+/* Stretched, so the grid's frame has a definite width to measure its cells against. */
+.area-grid,
+.area-hint {
+  justify-self: stretch;
+  display: grid;
+  justify-items: center;
+}
+
+/*
+ * The Pad Beside Rule (DESIGN.md): from 66.5rem the pad moves to the right of the
+ * grid. That is `--measure-play` — the narrowest page where the grid still gets its
+ * full 800px beside the pad — plus 1.5rem, because a media query measures the
+ * viewport including a classic scrollbar (17px on Windows) that the page cannot
+ * use. Custom properties do not work in a media query, so this literal has to be
+ * kept in step by hand; `e2e/number-pad.spec.ts` fails when it falls behind. This
+ * is the codebase's one width media query.
+ *
+ * The page is then exactly `--measure-play` wide, so the grid's column is always
+ * `--grid-max`, which is what lets the grid fit its frame to itself. The hint gives
+ * no width to its column, so a long sentence cannot widen it and push the grid and
+ * pad sideways.
+ */
+@media (min-width: 66.5rem) {
+  .work {
+    --pad-columns: 3;
+    --pad-key: var(--pad-key-beside);
+    --grid-fit: 1;
+
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      'grid pad'
+      'hint .';
+    justify-content: center;
+    align-items: start;
+    column-gap: var(--pad-gap);
+  }
+
+  .area-grid {
+    grid-area: grid;
+  }
+
+  .area-pad {
+    grid-area: pad;
+  }
+
+  .area-hint {
+    grid-area: hint;
+    width: 0;
+    min-width: 100%;
+  }
 }
 </style>

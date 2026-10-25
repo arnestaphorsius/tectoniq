@@ -52,6 +52,17 @@
   /* The single column's measure: the 800px grid ceiling plus the page's 1rem gutters. */
   --measure: 52rem;
 
+  /*
+   * The number pad beside the grid: three columns of square keys, `--pad-gap` from
+   * the grid. The play screen's measure is summed from these and the grid's own
+   * ceiling, so none of them can change without the measure following (65rem). App's
+   * breakpoint is this plus room for a scrollbar.
+   */
+  --pad-key-beside: 3.5rem;
+  --pad-width: calc(3 * var(--pad-key-beside) + 2 * var(--space-xs));
+  --pad-gap: var(--space-lg);
+  --measure-play: calc(var(--grid-max) + var(--pad-gap) + var(--pad-width) + 2 * var(--space-md));
+
   color-scheme: light dark;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--ink);

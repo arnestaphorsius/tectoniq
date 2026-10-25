@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { cageEdges } from '@/domain/puzzle/grid'
 import type { HintMarks } from './hintView'
 import { isWritable, nextSelection, toggledEntry, type Direction } from '@/domain/input/selection'
@@ -17,15 +17,20 @@ const props = withDefaults(
 )
 
 /**
- * The grid owns the selection because selection is view state — which cell the
- * keyboard is pointed at — while the board is domain state owned by the caller.
- * Digits therefore leave as an event rather than being written here.
+ * Digits leave as an event rather than being written here, because the board is
+ * domain state owned by the caller.
  */
 const emit = defineEmits<{
   entry: [cell: number, digit: Digit | null]
 }>()
 
-const selected = ref<number | null>(null)
+/**
+ * Which cell the keyboard is pointed at. The caller can bind it, so that a number
+ * pad outside the grid can write to the same cell; unbound, the grid keeps it.
+ * Dropping the selection on a click elsewhere is the caller's job, because only the
+ * caller knows what else on the page counts as part of the grid.
+ */
+const selected = defineModel<number | null>('selected', { default: null })
 const root = ref<HTMLElement | null>(null)
 
 const ARROW_DIRECTIONS: Readonly<Record<string, Direction>> = {
@@ -90,32 +95,57 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
 
-  // A given holds the selection but never takes a digit, so every write below is
-  // refused here rather than at the board — the ticket's "cannot alter a given".
-  if (!isWritable(props.puzzle, cell)) return
+  const key = keyFor(event)
+  if (key === undefined || !isWritable(props.puzzle, cell)) return
+  event.preventDefault()
+  press(key)
+}
 
-  if (event.key === 'Backspace' || event.key === 'Delete') {
-    event.preventDefault()
-    emit('entry', cell, null)
-    return
-  }
-
+/** The digit a key event writes, `null` for a clear, or undefined for any other key. */
+function keyFor(event: KeyboardEvent): Digit | null | undefined {
+  if (event.key === 'Backspace' || event.key === 'Delete') return null
   const digit = Number(event.key)
-  if (event.key.length === 1 && isDigit(digit)) {
-    event.preventDefault()
-    emit('entry', cell, toggledEntry(props.puzzle, props.board, cell, digit))
-  }
+  return event.key.length === 1 && isDigit(digit) ? digit : undefined
 }
 
-/** A click anywhere outside the grid drops the selection. */
-function onDocumentClick(event: MouseEvent) {
-  const target = event.target
-  if (target instanceof Node && root.value?.contains(target)) return
-  selected.value = null
+/**
+ * Writes `key` to the selected cell — a digit, or `null` to clear it — exactly as
+ * the keyboard does, pressing a digit twice included. The keyboard and the number
+ * pad both come through here, so the two can never disagree.
+ *
+ * A given holds the selection but never takes a digit, so the write is refused here
+ * rather than at the board — the ticket's "cannot alter a given".
+ */
+function press(key: Digit | null) {
+  const cell = selected.value
+  if (cell === null || !isWritable(props.puzzle, cell)) return
+  emit('entry', cell, key === null ? null : toggledEntry(props.puzzle, props.board, cell, key))
 }
 
-onMounted(() => document.addEventListener('click', onDocumentClick))
-onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
+/**
+ * Puts real focus on the selected cell. Moving the selection scrolls the cell into
+ * view, which a grid scrolling inside its frame needs; handing focus back after a
+ * press elsewhere passes `preventScroll`, or each tap on a pad below the grid would
+ * scroll a phone back up to it.
+ */
+function focusSelected(options: FocusOptions = {}) {
+  const cell = selected.value
+  if (cell !== null) root.value?.querySelector<HTMLElement>(`[data-cell="${cell}"]`)?.focus(options)
+}
+
+/** Whether `node` is part of the grid, for a caller deciding what a click hit. */
+function contains(node: Node): boolean {
+  return root.value?.contains(node) ?? false
+}
+
+/**
+ * The grid's own key handling, for a caller whose controls stand in for the grid —
+ * the number pad passes on the keys it does not use itself, so the keyboard keeps
+ * working while focus is on one of its keys.
+ */
+const handleKey = onKeydown
+
+defineExpose({ press, focusSelected, contains, handleKey })
 
 // Selection is focus, so move the real focus with it — including on the way out.
 // Only a cell of this grid is ever blurred: a click that lands on something else
@@ -126,7 +156,7 @@ watch(selected, (cell) => {
     if (active instanceof HTMLElement && root.value?.contains(active)) active.blur()
     return
   }
-  root.value?.querySelector<HTMLElement>(`[data-cell="${cell}"]`)?.focus()
+  focusSelected()
 })
 </script>
 
@@ -136,12 +166,11 @@ watch(selected, (cell) => {
     only thing that ever scrolls. Without it a wide grid widened the document and
     dragged the whole page off-centre.
   -->
-  <div class="grid-frame">
+  <div class="grid-frame" :style="{ '--cols': puzzle.width }">
     <div
       ref="root"
       class="grid"
       data-testid="puzzle-grid"
-      :style="{ '--cols': puzzle.width }"
       role="grid"
       :aria-label="`${puzzle.width} by ${puzzle.height} Tectonic puzzle`"
       @keydown="onKeydown"
@@ -179,10 +208,30 @@ watch(selected, (cell) => {
 <style scoped>
 /* `--grid-max` is what caps the puzzle at 800px: `100cqi` below is this frame's
    inline size, so capping the frame makes the ceiling bind through the arithmetic
-   that is already there, and the thing that scrolls stays the thing that centres. */
+   that is already there, and the thing that scrolls stays the thing that centres.
+
+   A caller that knows the frame's column is exactly `--grid-max` wide can set
+   `--grid-fit: 1` to fit the frame to the grid instead of filling the column — the
+   play screen does, so the number pad sits beside the grid rather than at the far
+   edge of an 800px column. `--fitted` is the cell's own clamp, evaluated for that
+   column, so the frame and the cells it holds cannot disagree. `--grid-fit` is a
+   number rather than a keyword because CSS has no conditional: it scales a
+   `min-width`, which is 0 by default and `--fitted` when set. It is a minimum and
+   not the width because a percentage width in an `auto` column counts as no width
+   while the column is sized — and a size container's own content counts for
+   nothing either, so the column would collapse under the grid. The minimum is
+   capped at `--grid-max` too, because a minimum beats `max-width`: past the column
+   count where the cell floor binds, the frame would otherwise grow and push the
+   page sideways instead of scrolling. */
 .grid-frame {
+  --fitted: calc(
+    var(--cols) * clamp(var(--cell-floor), (var(--grid-max) - 4px) / var(--cols), var(--cell-max)) +
+      4px
+  );
+
   container-type: inline-size;
   width: 100%;
+  min-width: calc(var(--grid-fit, 0) * min(var(--fitted), var(--grid-max)));
   max-width: var(--grid-max);
   overflow-x: auto;
 }
