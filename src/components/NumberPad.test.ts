@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vite-plus/test'
+import type { EntryMode } from '@/domain/input/notes'
 import NumberPad from './NumberPad.vue'
 
 enableAutoUnmount(afterEach)
 
-function mountPad() {
-  return mount(NumberPad, { attachTo: document.body })
+function mountPad(mode: EntryMode = 'normal') {
+  return mount(NumberPad, { props: { mode }, attachTo: document.body })
 }
 
 describe('number pad', () => {
@@ -39,5 +40,30 @@ describe('number pad', () => {
 
     expect(pad.attributes('role')).toBe('group')
     expect(pad.attributes('aria-label')).toBe('Number pad')
+  })
+
+  it('marks the current mode, and only that one, as pressed', () => {
+    const wrapper = mountPad('candidate')
+
+    expect(wrapper.get('[data-mode="candidate"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-mode="normal"]').attributes('aria-pressed')).toBe('false')
+  })
+
+  it('switches mode from the toggle', async () => {
+    const wrapper = mountPad()
+
+    await wrapper.get('[data-mode="candidate"]').trigger('click')
+
+    expect(wrapper.emitted('update:mode')).toEqual([['candidate']])
+  })
+
+  it('in Candidate mode, places its digits the way a cell draws candidates', () => {
+    const places = (mode: EntryMode) =>
+      mountPad(mode)
+        .findAll('[data-digit] .face')
+        .map((face) => face.attributes('data-note'))
+
+    expect(places('normal')).toEqual([undefined, undefined, undefined, undefined, undefined])
+    expect(places('candidate')).toEqual(['1', '2', '3', '4', '5'])
   })
 })

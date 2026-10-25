@@ -234,7 +234,7 @@ onBeforeUnmount(endDrag)
 <template>
   <section class="editor" data-testid="puzzle-editor">
     <div class="sizing">
-      <div class="presets" role="group" aria-label="Grid size">
+      <div class="presets segmented" role="group" aria-label="Grid size">
         <button
           v-for="side in SIZE_PRESETS"
           :key="side"
@@ -371,42 +371,14 @@ onBeforeUnmount(endDrag)
   gap: var(--space-sm) var(--space-lg);
 }
 
-/* Joined, so three presets read as one choice rather than three buttons. The
-   shared edge is drawn once; a hovered or focused preset lifts over its
-   neighbours so its whole border shows. */
+/* Joined by `.segmented` (style.css), so three presets read as one choice rather
+   than three buttons; the current size is marked the same way. */
 .presets {
   display: flex;
 }
 
 .presets .control {
-  position: relative;
   font-variant-numeric: tabular-nums;
-}
-
-.presets .control + .control {
-  margin-left: -1px;
-}
-
-.presets .control:hover,
-.presets .control:focus-visible {
-  z-index: 1;
-}
-
-/* The current size, marked the way the screen switcher marks the current screen:
-   weight 600 and a 2px ink rule along the bottom, drawn inside the button so the
-   group's geometry does not move. */
-.presets .control.current {
-  font-weight: 600;
-  border-color: var(--ink);
-  z-index: 1;
-}
-
-.presets .control.current::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 2px;
-  background: var(--ink);
 }
 
 .custom {

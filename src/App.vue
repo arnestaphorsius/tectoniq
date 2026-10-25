@@ -7,11 +7,20 @@ import PuzzleEditor from './components/PuzzleEditor.vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
 import { findHint } from '@/domain/hints/hint'
 import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { emptyNotes, withNotes, type EntryMode, type Notes } from '@/domain/input/notes'
 import { withEntry } from '@/domain/input/selection'
 import { emptyBoard, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 import { findViolations, isSolved } from '@/domain/puzzle/validate'
 
 const board = ref<Board>(emptyBoard(SAMPLE_PUZZLE))
+
+/**
+ * The candidates the player has marked, and whether a digit press marks one. Both
+ * outlive a trip to the editor, like the board. Changing a candidate leaves a hint
+ * on screen alone: hints are worked out from the board, and never read these.
+ */
+const notes = ref<Notes>(emptyNotes(SAMPLE_PUZZLE))
+const mode = ref<EntryMode>('normal')
 const violations = computed(() => findViolations(SAMPLE_PUZZLE, board.value))
 
 /**
@@ -39,8 +48,19 @@ const solved = computed(() => isSolved(SAMPLE_PUZZLE, board.value))
 watch([board, screen], () => (hint.value = null))
 watch(screen, () => (selected.value = null))
 
+/**
+ * Placing a digit leaves the candidates alone. The grid draws none under a digit,
+ * so they are hidden while it is there and back the moment it is taken out — a
+ * player trying a digit loses nothing by it. Candidates elsewhere are left alone
+ * too, even when the new digit rules them out: the marks are a record of the
+ * player's thinking, not the app's.
+ */
 function onEntry(cell: number, digit: Digit | null) {
   board.value = withEntry(board.value, cell, digit)
+}
+
+function onNotes(cell: number, digits: readonly Digit[]) {
+  notes.value = withNotes(notes.value, cell, digits)
 }
 
 /**
@@ -64,10 +84,10 @@ function onPadClick(event: MouseEvent) {
 
 /**
  * With focus on a pad key, the keyboard still plays the grid: digits, Backspace,
- * the arrow keys and Escape go to the grid's own handler, so a key does the same
- * wherever focus is. An arrow key moves the selection, and focus follows it into the
- * grid. Enter, Space and Tab are not the grid's and stay with the pad, which is how
- * its keys are pressed and left.
+ * the arrow keys, Escape and Space go to the grid's own handler, so a key does the
+ * same wherever focus is. An arrow key moves the selection, and focus follows it
+ * into the grid. Space switches mode here too rather than pressing the focused key;
+ * Enter presses it, and Tab leaves the pad.
  */
 function onPadKeydown(event: KeyboardEvent) {
   grid.value?.handleKey(event)
@@ -137,16 +157,23 @@ function fillHint() {
         <PuzzleGrid
           ref="grid"
           v-model:selected="selected"
+          v-model:mode="mode"
           :puzzle="SAMPLE_PUZZLE"
           :board="board"
           :violations="violations"
           :marks="marksFor(hint)"
+          :notes="notes"
           @entry="onEntry"
+          @notes="onNotes"
         />
       </div>
 
       <div ref="padArea" class="area-pad" @click="onPadClick" @keydown="onPadKeydown">
-        <NumberPad @digit="(digit) => grid?.press(digit)" @erase="grid?.press(null)" />
+        <NumberPad
+          v-model:mode="mode"
+          @digit="(digit) => grid?.press(digit)"
+          @erase="grid?.press(null)"
+        />
       </div>
 
       <div class="area-hint">

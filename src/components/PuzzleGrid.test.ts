@@ -2,6 +2,7 @@
 import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vite-plus/test'
 import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { emptyNotes, withNotes, type EntryMode, type Notes } from '@/domain/input/notes'
 import { emptyBoard, type Board, type Puzzle } from '@/domain/puzzle/types'
 import { findViolations, type Violation } from '@/domain/puzzle/validate'
 import PuzzleGrid from './PuzzleGrid.vue'
@@ -29,7 +30,13 @@ const ONE_WIDE: Puzzle = {
 }
 
 function mountGrid(
-  options: { puzzle?: Puzzle; board?: Board; violations?: readonly Violation[] } = {},
+  options: {
+    puzzle?: Puzzle
+    board?: Board
+    violations?: readonly Violation[]
+    notes?: Notes
+    mode?: EntryMode
+  } = {},
 ) {
   const puzzle = options.puzzle ?? SAMPLE_PUZZLE
   return mount(PuzzleGrid, {
@@ -37,6 +44,8 @@ function mountGrid(
       puzzle,
       board: options.board ?? emptyBoard(puzzle),
       violations: options.violations ?? [],
+      notes: options.notes ?? emptyNotes(puzzle),
+      mode: options.mode ?? 'normal',
     },
     attachTo: document.body,
   })
@@ -225,5 +234,344 @@ describe('violation marker', () => {
     // Cell 7 is a given the sample leaves legal, so nothing marks it.
     expect(cell(wrapper, 7).find('[data-testid="violation-marker"]').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="violation-marker"]')).toHaveLength(2)
+  })
+})
+
+describe('candidates', () => {
+  /** Notes with `digits` marked in cell 0 of the sample. */
+  const marked = (...digits: Parameters<typeof withNotes>[2]) =>
+    withNotes(emptyNotes(SAMPLE_PUZZLE), 0, digits)
+
+  /** The candidates drawn in a cell, in the order they appear. */
+  function drawn(wrapper: VueWrapper, index: number): string[] {
+    return cell(wrapper, index)
+      .findAll('[data-note]')
+      .map((note) => note.attributes('data-note') ?? '')
+  }
+
+  it('draws each candidate in its own place, and names them in one phrase', () => {
+    const wrapper = mountGrid({ notes: marked(1, 3, 5) })
+
+    expect(drawn(wrapper, 0)).toEqual(['1', '3', '5'])
+    expect(cell(wrapper, 0).get('.sr-only').text()).toBe('candidates 1, 3, 5')
+    for (const note of cell(wrapper, 0).findAll('[data-note]')) {
+      expect(note.attributes('aria-hidden')).toBe('true')
+    }
+  })
+
+  it('draws no candidates under a digit', () => {
+    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const wrapper = mountGrid({ board, notes: marked(1, 3) })
+
+    expect(cell(wrapper, 0).find('[data-testid="candidates"]').exists()).toBe(false)
+  })
+
+  it('an empty cell with no candidates still matches :empty', () => {
+    const wrapper = mountGrid()
+
+    // `:empty` ignores comments, such as the anchors Vue leaves for each `v-if`; an
+    // element or a stray text node would stop it matching.
+    expect(cell(wrapper, 0).element.children).toHaveLength(0)
+    expect(cell(wrapper, 0).element.textContent).toBe('')
+  })
+
+  it('in Candidate mode a digit marks a candidate rather than writing it', async () => {
+    const wrapper = mountGrid({ notes: marked(1), mode: 'candidate' })
+
+    await pressOn(wrapper, 0, '3')
+
+    expect(wrapper.emitted('notes')).toEqual([[0, [1, 3]]])
+    expect(wrapper.emitted('entry')).toBeUndefined()
+  })
+
+  it('in Candidate mode a marked digit is unmarked', async () => {
+    const wrapper = mountGrid({ notes: marked(1, 3), mode: 'candidate' })
+
+    await pressOn(wrapper, 0, '3')
+
+    expect(wrapper.emitted('notes')).toEqual([[0, [1]]])
+  })
+
+  it('Shift and a digit marks a candidate in Normal mode, by the physical key', async () => {
+    const wrapper = mountGrid()
+    await cell(wrapper, 0).trigger('click')
+
+    // US English: Shift and 2 types "@".
+    await cell(wrapper, 0).trigger('keydown', { key: '@', code: 'Digit2', shiftKey: true })
+
+    expect(wrapper.emitted('notes')).toEqual([[0, [2]]])
+    expect(wrapper.emitted('entry')).toBeUndefined()
+  })
+
+  it('a layout that needs Shift to type a digit still writes the digit', async () => {
+    const wrapper = mountGrid()
+    await cell(wrapper, 0).trigger('click')
+
+    // French AZERTY: the digits are on Shift.
+    await cell(wrapper, 0).trigger('keydown', { key: '2', code: 'Digit2', shiftKey: true })
+
+    expect(wrapper.emitted('entry')).toEqual([[0, 2]])
+    expect(wrapper.emitted('notes')).toBeUndefined()
+  })
+
+  it('Shift with a symbol key marks nothing', async () => {
+    const wrapper = mountGrid()
+    await cell(wrapper, 0).trigger('click')
+
+    await cell(wrapper, 0).trigger('keydown', { key: '(', code: 'Digit9', shiftKey: true })
+
+    expect(wrapper.emitted('notes')).toBeUndefined()
+    expect(wrapper.emitted('entry')).toBeUndefined()
+  })
+
+  it('a candidate replaces the digit a cell holds, among the kept candidates', async () => {
+    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const wrapper = mountGrid({ board, notes: marked(1, 4), mode: 'candidate' })
+
+    await pressOn(wrapper, 0, '3')
+
+    expect(wrapper.emitted('entry')).toEqual([[0, null]])
+    expect(wrapper.emitted('notes')).toEqual([[0, [1, 3, 4]]])
+  })
+
+  it('a candidate the same as the digit replaces it too', async () => {
+    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const wrapper = mountGrid({ board, mode: 'candidate' })
+
+    await pressOn(wrapper, 0, '2')
+
+    expect(wrapper.emitted('entry')).toEqual([[0, null]])
+    expect(wrapper.emitted('notes')).toEqual([[0, [2]]])
+  })
+
+  it('replacing a digit marks a kept candidate rather than toggling it off', async () => {
+    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const wrapper = mountGrid({ board, notes: marked(1, 4), mode: 'candidate' })
+
+    await pressOn(wrapper, 0, '4')
+
+    expect(wrapper.emitted('notes')).toEqual([[0, [1, 4]]])
+  })
+
+  it('Shift and a digit replaces a digit in Normal mode too', async () => {
+    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const wrapper = mountGrid({ board })
+    await cell(wrapper, 0).trigger('click')
+
+    await cell(wrapper, 0).trigger('keydown', { key: '#', code: 'Digit3', shiftKey: true })
+
+    expect(wrapper.emitted('entry')).toEqual([[0, null]])
+    expect(wrapper.emitted('notes')).toEqual([[0, [3]]])
+  })
+
+  it('a given takes no candidates', async () => {
+    const wrapper = mountGrid({ mode: 'candidate' })
+
+    // Cell 4 is the sample's given 3.
+    await pressOn(wrapper, 4, '1')
+
+    expect(wrapper.emitted('notes')).toBeUndefined()
+  })
+
+  it('a clear on a cell with no digit takes its candidates out', async () => {
+    const wrapper = mountGrid({ notes: marked(1, 3) })
+
+    await pressOn(wrapper, 0, 'Backspace')
+
+    expect(wrapper.emitted('notes')).toEqual([[0, []]])
+    expect(wrapper.emitted('entry')).toBeUndefined()
+  })
+
+  it('a clear on a cell with a digit takes only the digit out', async () => {
+    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const wrapper = mountGrid({ board, notes: marked(1, 3) })
+
+    await pressOn(wrapper, 0, 'Delete')
+
+    expect(wrapper.emitted('entry')).toEqual([[0, null]])
+    expect(wrapper.emitted('notes')).toBeUndefined()
+  })
+
+  it('a clear on an empty cell with no candidates emits nothing', async () => {
+    const wrapper = mountGrid()
+
+    await pressOn(wrapper, 0, 'Backspace')
+
+    expect(wrapper.emitted('entry')).toBeUndefined()
+    expect(wrapper.emitted('notes')).toBeUndefined()
+  })
+
+  it('holding Space switches the mode once, and keeps the page from scrolling', async () => {
+    const wrapper = mountGrid()
+    await cell(wrapper, 0).trigger('click')
+    const repeat = new KeyboardEvent('keydown', {
+      key: ' ',
+      repeat: true,
+      bubbles: true,
+      cancelable: true,
+    })
+
+    await cell(wrapper, 0).trigger('keydown', { key: ' ' })
+    cell(wrapper, 0).element.dispatchEvent(repeat)
+
+    expect(wrapper.emitted('update:mode')).toEqual([['candidate']])
+    expect(repeat.defaultPrevented).toBe(true)
+  })
+
+  it.each(['ctrlKey', 'shiftKey', 'altKey', 'metaKey'] as const)(
+    'Space with %s is left to the system',
+    async (modifier) => {
+      const wrapper = mountGrid()
+      await cell(wrapper, 0).trigger('click')
+      const chord = new KeyboardEvent('keydown', {
+        key: ' ',
+        [modifier]: true,
+        bubbles: true,
+        cancelable: true,
+      })
+
+      cell(wrapper, 0).element.dispatchEvent(chord)
+
+      expect(wrapper.emitted('update:mode')).toBeUndefined()
+      expect(chord.defaultPrevented).toBe(false)
+    },
+  )
+
+  it.each([
+    ['Ctrl, Shift and 1', { key: '!', code: 'Digit1', ctrlKey: true, shiftKey: true }],
+    ['Alt, Shift and 1', { key: '!', code: 'Digit1', altKey: true, shiftKey: true }],
+    ['Meta, Shift and 1', { key: '!', code: 'Digit1', metaKey: true, shiftKey: true }],
+    ['Ctrl and 1', { key: '1', code: 'Digit1', ctrlKey: true }],
+    ['Meta and 1', { key: '1', code: 'Digit1', metaKey: true }],
+  ])('%s is a shortcut, and neither writes nor marks', async (_, init) => {
+    const wrapper = mountGrid()
+    await cell(wrapper, 0).trigger('click')
+    const chord = new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true })
+
+    cell(wrapper, 0).element.dispatchEvent(chord)
+
+    expect(wrapper.emitted('notes')).toBeUndefined()
+    expect(wrapper.emitted('entry')).toBeUndefined()
+    expect(chord.defaultPrevented).toBe(false)
+  })
+
+  it('AltGr, which Windows reports as Ctrl and Alt, is not a shortcut', async () => {
+    const wrapper = mountGrid()
+    await cell(wrapper, 0).trigger('click')
+
+    await cell(wrapper, 0).trigger('keydown', {
+      key: '2',
+      code: 'Digit2',
+      ctrlKey: true,
+      altKey: true,
+    })
+
+    expect(wrapper.emitted('entry')).toEqual([[0, 2]])
+  })
+
+  it.each(['ctrlKey', 'altKey', 'metaKey', 'shiftKey'] as const)(
+    'Backspace with %s still clears, as it always has',
+    async (modifier) => {
+      const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+      const wrapper = mountGrid({ board })
+      await cell(wrapper, 0).trigger('click')
+
+      await cell(wrapper, 0).trigger('keydown', { key: 'Backspace', [modifier]: true })
+
+      expect(wrapper.emitted('entry')).toEqual([[0, null]])
+    },
+  )
+
+  it.each(['ctrlKey', 'altKey', 'metaKey'] as const)(
+    'an arrow key with %s still moves the selection, as it always has',
+    async (modifier) => {
+      const wrapper = mountGrid()
+      await cell(wrapper, 0).trigger('click')
+
+      await cell(wrapper, 0).trigger('keydown', { key: 'ArrowRight', [modifier]: true })
+
+      expect(selectedCell(wrapper)).toBe(1)
+    },
+  )
+
+  describe('a held key presses once', () => {
+    /** A keydown, then one repeat of it, as a held key sends. */
+    async function hold(wrapper: VueWrapper, init: KeyboardEventInit) {
+      await cell(wrapper, 0).trigger('keydown', init)
+      await cell(wrapper, 0).trigger('keydown', { ...init, repeat: true })
+    }
+
+    it('a digit in Candidate mode marks once', async () => {
+      const wrapper = mountGrid({ mode: 'candidate' })
+      await cell(wrapper, 0).trigger('click')
+
+      await hold(wrapper, { key: '3' })
+
+      expect(wrapper.emitted('notes')).toEqual([[0, [3]]])
+    })
+
+    it('Shift and a digit marks once', async () => {
+      const wrapper = mountGrid()
+      await cell(wrapper, 0).trigger('click')
+
+      await hold(wrapper, { key: '#', code: 'Digit3', shiftKey: true })
+
+      expect(wrapper.emitted('notes')).toEqual([[0, [3]]])
+    })
+
+    it('a digit in Normal mode writes once', async () => {
+      const wrapper = mountGrid()
+      await cell(wrapper, 0).trigger('click')
+
+      await hold(wrapper, { key: '3' })
+
+      expect(wrapper.emitted('entry')).toEqual([[0, 3]])
+    })
+
+    it('Backspace clears the digit and leaves the candidates under it', async () => {
+      const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+      const wrapper = mountGrid({ board, notes: marked(1, 3) })
+      await cell(wrapper, 0).trigger('click')
+
+      await hold(wrapper, { key: 'Backspace' })
+
+      expect(wrapper.emitted('entry')).toEqual([[0, null]])
+      expect(wrapper.emitted('notes')).toBeUndefined()
+    })
+
+    it('a repeat is still kept from doing what the browser would do with it', () => {
+      const wrapper = mountGrid()
+      void cell(wrapper, 0).trigger('click')
+      const repeat = new KeyboardEvent('keydown', {
+        key: 'Backspace',
+        repeat: true,
+        bubbles: true,
+        cancelable: true,
+      })
+
+      cell(wrapper, 0).element.dispatchEvent(repeat)
+
+      expect(repeat.defaultPrevented).toBe(true)
+    })
+
+    it('an arrow key held still moves on every repeat', async () => {
+      const wrapper = mountGrid()
+      await cell(wrapper, 0).trigger('click')
+
+      await hold(wrapper, { key: 'ArrowRight' })
+
+      expect(selectedCell(wrapper)).toBe(2)
+    })
+  })
+
+  it('Space switches the mode both ways', async () => {
+    const normal = mountGrid({ mode: 'normal' })
+    const candidate = mountGrid({ mode: 'candidate' })
+
+    await pressOn(normal, 0, ' ')
+    await pressOn(candidate, 0, ' ')
+
+    expect(normal.emitted('update:mode')).toEqual([['candidate']])
+    expect(candidate.emitted('update:mode')).toEqual([['normal']])
   })
 })

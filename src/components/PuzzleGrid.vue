@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { cageEdges } from '@/domain/puzzle/grid'
 import type { HintMarks } from './hintView'
+import { markedNote, toggledNote, type EntryMode, type Notes } from '@/domain/input/notes'
 import { isWritable, nextSelection, toggledEntry, type Direction } from '@/domain/input/selection'
 import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 import { valueAt, type Violation } from '@/domain/puzzle/validate'
@@ -12,17 +13,23 @@ const props = withDefaults(
     board: Board
     violations: readonly Violation[]
     marks?: HintMarks
+    /** The candidates the player has marked; none when left out. */
+    notes?: Notes
   }>(),
-  { marks: () => ({}) },
+  { marks: () => ({}), notes: () => [] },
 )
 
 /**
- * Digits leave as an event rather than being written here, because the board is
- * domain state owned by the caller.
+ * Digits and candidates leave as events rather than being written here, because
+ * the board and the notes are domain state owned by the caller.
  */
 const emit = defineEmits<{
   entry: [cell: number, digit: Digit | null]
+  notes: [cell: number, digits: readonly Digit[]]
 }>()
+
+/** Whether a digit is written or marked as a candidate. Space switches it. */
+const mode = defineModel<EntryMode>('mode', { default: 'normal' })
 
 /**
  * Which cell the keyboard is pointed at. The caller can bind it, so that a number
@@ -53,9 +60,12 @@ const offendingCells = computed(() => {
 const cells = computed(() =>
   props.puzzle.cages.map((_, cell) => {
     const isGiven = props.puzzle.givens[cell] != null
+    const value = valueAt(props.puzzle, props.board, cell)
     return {
       cell,
-      value: valueAt(props.puzzle, props.board, cell),
+      value,
+      // A digit covers the cell's candidates: they are kept, but not drawn under it.
+      notes: value === null ? (props.notes[cell] ?? []) : [],
       isGiven,
       // Givens are marked too. The marker says "this digit is part of a broken
       // rule", not "fix this cell" — seeing both ends of a conflict is what tells
@@ -78,7 +88,31 @@ function select(cell: number) {
   selected.value = cell
 }
 
+/**
+ * Whether a key event is a shortcut chord: Ctrl, Alt or Meta held. Those belong to
+ * the system or the browser — Ctrl and Space switches input source on many systems,
+ * Ctrl and 1 switches tab — so Space and the digits leave them alone. AltGr is not
+ * a chord: it types characters, and Windows reports it as Ctrl and Alt together,
+ * so the two together are read as AltGr. `getModifierState('AltGraph')` would say so
+ * more directly, but browsers disagree about it — Firefox on macOS reports Option
+ * as AltGraph. The arrow keys and the clears are not affected, and keep working
+ * with any modifier as they always have.
+ */
+function isChord(event: KeyboardEvent): boolean {
+  return event.metaKey || event.ctrlKey !== event.altKey
+}
+
 function onKeydown(event: KeyboardEvent) {
+  // Space switches mode once per press. Holding it would otherwise flip the mode
+  // back and forth with every repeat; the repeats are still kept from scrolling the
+  // page. Space with Shift or any chord is left to the system.
+  if (event.key === ' ') {
+    if (event.shiftKey || isChord(event)) return
+    event.preventDefault()
+    if (!event.repeat) mode.value = mode.value === 'normal' ? 'candidate' : 'normal'
+    return
+  }
+
   const cell = selected.value
   if (cell === null) return
 
@@ -95,31 +129,72 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
 
-  const key = keyFor(event)
-  if (key === undefined || !isWritable(props.puzzle, cell)) return
+  const pressed = keyFor(event)
+  if (pressed === undefined || !isWritable(props.puzzle, cell)) return
   event.preventDefault()
-  press(key)
-}
-
-/** The digit a key event writes, `null` for a clear, or undefined for any other key. */
-function keyFor(event: KeyboardEvent): Digit | null | undefined {
-  if (event.key === 'Backspace' || event.key === 'Delete') return null
-  const digit = Number(event.key)
-  return event.key.length === 1 && isDigit(digit) ? digit : undefined
+  // One press per press. A held digit would otherwise toggle its digit or its
+  // candidate on and off with every repeat, and a held Backspace would take the
+  // digit out and then the candidates kept under it.
+  if (!event.repeat) press(pressed.key, pressed.asNote)
 }
 
 /**
- * Writes `key` to the selected cell — a digit, or `null` to clear it — exactly as
- * the keyboard does, pressing a digit twice included. The keyboard and the number
- * pad both come through here, so the two can never disagree.
+ * What a key event presses: a digit, or `null` for a clear, and whether a digit is
+ * marked as a candidate whatever the mode. Undefined for any other key.
+ *
+ * Shift and a digit marks a candidate. With Shift held, a layout whose digits are
+ * unshifted types a symbol (`!` for 1 on US English), so the physical key says which
+ * digit was meant. A layout that needs Shift to type a digit at all (French AZERTY)
+ * still types the digit, and the first branch takes it as an ordinary press there;
+ * such a player switches mode with Space instead. A digit in a chord is a shortcut,
+ * not a press, so Ctrl, Shift and 1 is still the shortcut it was meant to be. A
+ * clear takes any modifier, as it always has.
+ */
+function keyFor(event: KeyboardEvent): { key: Digit | null; asNote: boolean } | undefined {
+  if (event.key === 'Backspace' || event.key === 'Delete') return { key: null, asNote: false }
+  if (isChord(event)) return undefined
+
+  const typed = Number(event.key)
+  if (event.key.length === 1 && isDigit(typed)) return { key: typed, asNote: false }
+
+  const physical = Number(/^(?:Digit|Numpad)(\d)$/.exec(event.code)?.[1])
+  return event.shiftKey && isDigit(physical) ? { key: physical, asNote: true } : undefined
+}
+
+/**
+ * Presses `key` on the selected cell — a digit, or `null` to clear it — exactly as
+ * the keyboard does. The keyboard and the number pad both come through here, so the
+ * two can never disagree.
+ *
+ * In Normal mode a digit is written, and pressing it twice takes it back. In
+ * Candidate mode, or with `asNote`, it is marked or unmarked as a candidate instead.
+ * On a cell holding a digit, a candidate replaces the digit: the digit comes out,
+ * the candidates kept under it show again, and the one pressed is marked among them
+ * — marked, not toggled, so the press always ends with it showing. A clear takes the
+ * digit out too, which shows the cell's candidates again; from a cell with no
+ * digit, it takes the candidates out.
  *
  * A given holds the selection but never takes a digit, so the write is refused here
  * rather than at the board — the ticket's "cannot alter a given".
  */
-function press(key: Digit | null) {
+function press(key: Digit | null, asNote = false) {
   const cell = selected.value
   if (cell === null || !isWritable(props.puzzle, cell)) return
-  emit('entry', cell, key === null ? null : toggledEntry(props.puzzle, props.board, cell, key))
+  const value = valueAt(props.puzzle, props.board, cell)
+
+  if (key === null) {
+    if (value !== null) emit('entry', cell, null)
+    else if ((props.notes[cell] ?? []).length > 0) emit('notes', cell, [])
+  } else if (asNote || mode.value === 'candidate') {
+    if (value === null) {
+      emit('notes', cell, toggledNote(props.notes, cell, key))
+    } else {
+      emit('entry', cell, null)
+      emit('notes', cell, markedNote(props.notes, cell, key))
+    }
+  } else {
+    emit('entry', cell, toggledEntry(props.puzzle, props.board, cell, key))
+  }
 }
 
 /**
@@ -193,6 +268,22 @@ watch(selected, (cell) => {
         behind, which makes every cell match `:not(:empty)`.
       -->
         <span v-if="cell.value !== null" class="digit">{{ cell.value }}</span>
+        <!--
+          Each candidate has a fixed place, like the five on a die, so the eye always
+          looks in the same spot for the same digit. The places are drawn for the
+          eye only; a screen reader is told the candidates in one phrase instead.
+        -->
+        <span v-if="cell.notes.length > 0" class="notes die" data-testid="candidates">
+          <span class="sr-only">candidates {{ cell.notes.join(', ') }}</span>
+          <span
+            v-for="note in cell.notes"
+            :key="note"
+            class="note"
+            :data-note="note"
+            aria-hidden="true"
+            >{{ note }}</span
+          >
+        </span>
         <span
           v-if="cell.isOffending"
           class="marker"
@@ -307,6 +398,33 @@ watch(selected, (cell) => {
 
 .cell.hint-dead {
   background-color: color-mix(in srgb, var(--bad) 22%, var(--paper));
+}
+
+/*
+ * Candidates sit in the places of the five on a die, from the shared `.die` rule in
+ * `style.css` that the number pad uses too. They are the player's hand, so they are
+ * Entry Blue, at a size tied to the cell like the digit. They have nothing in
+ * common with the violation marker's corner: a cell with candidates holds no digit,
+ * so no rule can be broken there.
+ */
+.notes {
+  position: absolute;
+  inset: 0;
+  place-items: center;
+  padding: calc(var(--cell) / 14);
+  font-size: max(0.5rem, calc(var(--cell) / 4.6));
+  line-height: 1;
+  color: var(--entry);
+  font-weight: 400;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /*

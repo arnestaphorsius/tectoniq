@@ -69,7 +69,10 @@ pointer/touch-drag — so neither is speculative.
 Terminology in use, and the only vocabulary for these things: **cage** (a region of
 1–5 cells), **given** (a printed clue, never overwritable), **entry** (a digit the
 player wrote), **violation** (a broken rule the app names), **hint** (a staged pointer
-to the next deduction), **strategy** (one named way of deducing a digit).
+to the next deduction), **strategy** (one named way of deducing a digit), **candidate**
+(a digit the player has marked as possible in a cell). The hint loop's internal list of
+possible digits is not a candidate in this sense and is never shown; in code the
+player's candidates are called notes to keep the two apart.
 
 ## Capabilities and Constraints
 
@@ -90,6 +93,12 @@ without it the cages would be independent.
 - A number pad on the play screen, so digits can be entered and erased by pointer or
   touch, with the same effect as the keyboard. It sits under the grid, and beside it
   on a viewport 66.5rem (1064px) wide or more.
+- Marking candidates, after the NYT Sudoku's Candidate mode: a Normal | Candidate
+  toggle on the pad, Space to switch mode, and Shift and a digit to mark one candidate
+  in either. Only the player changes candidates: placing a digit hides its cell's
+  until the digit is taken out again — by Erase, by pressing it again, or by marking
+  any candidate there, which replaces it — and nothing is tidied away. Hints do not read
+  them.
 - Violations are flagged per cell as they occur, on **both** ends of a conflict, so
   the player can see what their digit collided with. All problems are reported
   together, never just the first.
