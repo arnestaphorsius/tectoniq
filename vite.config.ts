@@ -231,6 +231,16 @@ export default defineConfig({
     clearMocks: false,
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    coverage: { reporter: ['text', 'html'], include: ['src/domain/**'] },
+    coverage: {
+      reporter: ['text', 'html'],
+      include: ['src/**/*.{ts,vue}'],
+      // Tests and their fixtures are not the code under test, and `main.ts` only
+      // mounts the app, which a unit test has no way to observe.
+      exclude: ['src/**/*.test.ts', 'src/**/fixtures.ts', 'src/main.ts', 'src/env.d.ts'],
+      // Just under what the suite reaches, so `pnpm verify` fails when coverage slips
+      // rather than demanding more of it. Raise them as the gaps close; never lower
+      // them to get a change through.
+      thresholds: { statements: 98, branches: 94, functions: 100, lines: 99 },
+    },
   },
 })
