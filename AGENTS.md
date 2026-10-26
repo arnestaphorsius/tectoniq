@@ -71,7 +71,7 @@ the domain is `@/domain/<dir>/file`.
 | Directory                      | Holds                                                     |
 | ------------------------------ | --------------------------------------------------------- |
 | `src/domain/puzzle/`           | The model and its rules: types, grid geometry, validation |
-| `src/domain/input/`            | Pure edits from input: drawing cages, entering digits     |
+| `src/domain/input/`            | Pure edits from input: cages, digits and candidates       |
 | `src/domain/hints/`            | The hint loop, candidates and all hint wording            |
 | `src/domain/hints/strategies/` | The strategies, and the `Step` and `Strategy` types       |
 

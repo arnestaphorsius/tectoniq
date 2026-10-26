@@ -155,3 +155,67 @@ input.control::-webkit-outer-spin-button {
   margin: 0;
   appearance: none;
 }
+
+/*
+ * A joined group of controls that make one choice, such as the editor's grid
+ * sizes and the number pad's mode. The shared edge is drawn once; a hovered or
+ * focused control lifts over its neighbours so its whole border shows. The current
+ * choice is marked the way the screen switcher marks the current screen — weight
+ * 600 and a 2px Ink rule along the bottom, drawn inside the control so the group's
+ * geometry does not move — plus an Ink stroke. Each group sets its own layout and
+ * its own ARIA state.
+ */
+.segmented > .control {
+  position: relative;
+}
+
+.segmented > .control + .control {
+  margin-left: -1px;
+}
+
+.segmented > .control:hover,
+.segmented > .control:focus-visible {
+  z-index: 1;
+}
+
+.segmented > .control.current {
+  font-weight: 600;
+  border-color: var(--ink);
+  z-index: 1;
+}
+
+.segmented > .control.current::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--ink);
+}
+
+/*
+ * The five places a candidate takes, like the five on a die: 1 and 2 across the
+ * top, 3 in the middle, 4 and 5 across the bottom. A cell draws its candidates on
+ * it, and a pad key in Candidate mode draws its digit on it, so the pad shows
+ * exactly where a press will put the mark. A child is placed by `data-note`; one
+ * without it is left to its container.
+ */
+.die {
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+}
+
+.die > [data-note='1'] {
+  grid-area: 1 / 1;
+}
+.die > [data-note='2'] {
+  grid-area: 1 / 3;
+}
+.die > [data-note='3'] {
+  grid-area: 2 / 2;
+}
+.die > [data-note='4'] {
+  grid-area: 3 / 1;
+}
+.die > [data-note='5'] {
+  grid-area: 3 / 3;
+}

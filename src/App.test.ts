@@ -710,3 +710,161 @@ describe('hint', () => {
     expect(findHint).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('candidates', () => {
+  const key = (wrapper: VueWrapper, digit: number) => wrapper.get(`[data-digit="${digit}"]`)
+  const modeButton = (wrapper: VueWrapper, mode: 'normal' | 'candidate') =>
+    wrapper.get(`[data-mode="${mode}"]`)
+
+  /** The candidates drawn in a cell, as the digits they show. */
+  function drawn(wrapper: VueWrapper, index: number): string[] {
+    return cell(wrapper, index)
+      .findAll('[data-note]')
+      .map((note) => note.attributes('data-note') ?? '')
+  }
+
+  /** Marks `digits` in `index` with Shift, which works in either mode. */
+  async function mark(wrapper: VueWrapper, index: number, digits: readonly number[]) {
+    await cell(wrapper, index).trigger('click')
+    for (const digit of digits) {
+      await cell(wrapper, index).trigger('keydown', {
+        key: '!',
+        code: `Digit${digit}`,
+        shiftKey: true,
+      })
+    }
+  }
+
+  it('the pad marks candidates in Candidate mode, and writes digits again in Normal', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+
+    await modeButton(wrapper, 'candidate').trigger('click')
+    await key(wrapper, 3).trigger('click')
+    await key(wrapper, 1).trigger('click')
+    expect(drawn(wrapper, 0)).toEqual(['1', '3'])
+    expect(cell(wrapper, 0).find('.digit').exists()).toBe(false)
+
+    await modeButton(wrapper, 'normal').trigger('click')
+    await key(wrapper, 2).trigger('click')
+    expect(cell(wrapper, 0).get('.digit').text()).toBe('2')
+  })
+
+  it('Space switches the pad toggle too', async () => {
+    const wrapper = mountApp()
+
+    await pressOn(wrapper, 0, ' ')
+
+    expect(modeButton(wrapper, 'candidate').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('Space with focus on a pad key switches mode instead of pressing the key', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+    const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+
+    key(wrapper, 2).element.dispatchEvent(space)
+    await wrapper.vm.$nextTick()
+
+    expect(space.defaultPrevented).toBe(true)
+    expect(modeButton(wrapper, 'candidate').attributes('aria-pressed')).toBe('true')
+    expect(cell(wrapper, 0).text()).toBe('')
+  })
+
+  it("placing a digit hides that cell's candidates and touches nobody else's", async () => {
+    const wrapper = mountApp()
+    await mark(wrapper, 0, [1, 2])
+    // Cell 1 touches cell 0, so a 1 in cell 0 rules its 1 out; it stays all the same.
+    await mark(wrapper, 1, [1, 4])
+
+    await pressOn(wrapper, 0, '1')
+
+    expect(drawn(wrapper, 0)).toEqual([])
+    expect(drawn(wrapper, 1)).toEqual(['1', '4'])
+  })
+
+  it('taking the digit out shows its candidates again', async () => {
+    const wrapper = mountApp()
+    await mark(wrapper, 0, [1, 2])
+    await pressOn(wrapper, 0, '1')
+
+    await pressOn(wrapper, 0, 'Backspace')
+
+    expect(drawn(wrapper, 0)).toEqual(['1', '2'])
+  })
+
+  it('pressing the digit again to take it back shows them again too', async () => {
+    const wrapper = mountApp()
+    await mark(wrapper, 0, [1, 2])
+    await pressOn(wrapper, 0, '1')
+
+    await pressOn(wrapper, 0, '1')
+
+    expect(drawn(wrapper, 0)).toEqual(['1', '2'])
+  })
+
+  it('a candidate replaces a digit, and joins the candidates kept under it', async () => {
+    const wrapper = mountApp()
+    await mark(wrapper, 0, [1, 2])
+    await pressOn(wrapper, 0, '1')
+    await wrapper.get('[data-mode="candidate"]').trigger('click')
+
+    await key(wrapper, 3).trigger('click')
+
+    expect(cell(wrapper, 0).find('.digit').exists()).toBe(false)
+    expect(drawn(wrapper, 0)).toEqual(['1', '2', '3'])
+  })
+
+  it('a second clear, once the digit is out, takes the candidates out', async () => {
+    const wrapper = mountApp()
+    await mark(wrapper, 0, [1, 2])
+    await pressOn(wrapper, 0, '1')
+
+    await pressOn(wrapper, 0, 'Backspace')
+    await pressOn(wrapper, 0, 'Backspace')
+
+    expect(cell(wrapper, 0).text()).toBe('')
+    expect(drawn(wrapper, 0)).toEqual([])
+  })
+
+  it("Fill in hides the target's candidates and a clear brings them back", async () => {
+    const wrapper = mountApp()
+    // The hint after a 1 in cell 17 fills a 1 into cell 15.
+    await pressOn(wrapper, 17, '1')
+    await mark(wrapper, 15, [1, 2])
+    const advance = () => wrapper.get('[data-testid="hint-advance"]')
+    await advance().trigger('click')
+    await advance().trigger('click')
+
+    await wrapper.get('[data-testid="hint-fill"]').trigger('click')
+    expect(cell(wrapper, 15).get('.digit').text()).toBe('1')
+    expect(drawn(wrapper, 15)).toEqual([])
+
+    await pressOn(wrapper, 15, 'Backspace')
+    expect(drawn(wrapper, 15)).toEqual(['1', '2'])
+  })
+
+  it('marking a candidate leaves the hint on screen', async () => {
+    const wrapper = mountApp()
+    await wrapper.get('[data-testid="hint-advance"]').trigger('click')
+    const target = () => wrapper.findAll('.hint-target')
+    expect(target()).toHaveLength(1)
+
+    await mark(wrapper, 0, [1])
+
+    expect(drawn(wrapper, 0)).toEqual(['1'])
+    expect(target()).toHaveLength(1)
+  })
+
+  it('candidates and the mode survive a trip to the editor', async () => {
+    const wrapper = mountApp()
+    await mark(wrapper, 0, [1, 2])
+    await pressOn(wrapper, 0, ' ')
+
+    await wrapper.get('[data-testid="open-editor"]').trigger('click')
+    await wrapper.get('[data-testid="open-play"]').trigger('click')
+
+    expect(drawn(wrapper, 0)).toEqual(['1', '2'])
+    expect(modeButton(wrapper, 'candidate').attributes('aria-pressed')).toBe('true')
+  })
+})

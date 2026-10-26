@@ -61,7 +61,8 @@ test.describe('number pad', () => {
     await page.goto('/')
 
     await cell(page, 0).click()
-    await page.keyboard.press('Tab')
+    // Past the mode toggle's two buttons to the first digit.
+    for (let tab = 0; tab < 3; tab += 1) await page.keyboard.press('Tab')
     await expect(key(page, 1)).toBeFocused()
 
     await page.keyboard.press('Enter')

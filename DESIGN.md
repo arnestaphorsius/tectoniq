@@ -359,7 +359,8 @@ decision serves.
 - **Player entry:** Entry Blue, weight 400, `tabular-nums`.
 - **Given:** Ink, weight 600. Selectable but never writable.
 - **Selected:** `outline: 3px solid var(--entry)` with `outline-offset: -3px`, so the ring sits _inside_ the cell and never disturbs the grid's geometry. Selection and keyboard focus are the same thing — the selected cell carries `tabindex="0"` and holds real DOM focus.
-- **Candidates** _(specified, not built yet)_: digits the player has marked as possible in an empty cell. Each digit has a fixed place, like the five on a die — 1 top-left, 2 top-right, 3 centre, 4 bottom-left, 5 bottom-right — so the eye always looks in the same spot for the same digit. They are Entry Blue, because the player wrote them (The Two Hands Rule), at weight 400 and a size derived from `--cell`. A cell holding a digit shows no candidates; placing the digit clears that cell's own candidates and nobody else's.
+- **Candidates:** digits the player has marked as possible in an empty cell. Each digit has a fixed place on a 3×3 grid inside the cell, like the five on a die — 1 top-left, 2 top-right, 3 centre, 4 bottom-left, 5 bottom-right — so the eye always looks in the same spot for the same digit. They are Entry Blue, because the player wrote them (The Two Hands Rule), at weight 400 and a size derived from `--cell` (a 4.6th of it, never under 0.5rem). The places are drawn for the eye only and are `aria-hidden`; a screen reader is told "candidates 1, 3, 5" in one phrase. A cell holding a digit shows no candidates, and a given never takes any.
+- **Only the player changes candidates.** Placing a digit hides its cell's candidates rather than clearing them, and taking the digit out — Erase, Backspace, or pressing the digit again — shows them again, so trying a digit costs the player nothing. Marking a candidate on a cell with a digit replaces the digit, whatever the number: the digit comes out, the kept candidates show again, and the one pressed is marked among them — marked, never toggled off, so the press always ends with it showing. That makes a wrong digit quick to take back without leaving Candidate mode. A clear on a cell with no digit takes its candidates out. Nothing else is touched — not even a candidate the new digit rules out next door. The marks are a record of the player's thinking, and tidying them would be the app doing the deduction for them (Product Principle 2).
 - **Known limit, recorded:** at the 1.75rem cell floor (a 12-wide grid on a phone) candidates are barely legible. Scaling them up would break the cell's proportions, so this is accepted rather than solved.
 
 ### Violation Marker (signature component)
@@ -384,7 +385,8 @@ a 1px `--control-rule` stroke, a Paper fill, Ink text, no radius, no shadow.
 - **Never filled.** No control gets a primary treatment: a filled button would out-contrast the grid, which inverts the whole system.
 
 **Presets** are joined into one segmented group (shared 1px edges), because three
-sizes are one choice. The size the grid is currently at is marked the way the
+sizes are one choice. The joining and the current-choice mark are the shared
+`.segmented` rule in `src/style.css`, which the number pad's mode toggle uses too. The size the grid is currently at is marked the way the
 screen switcher marks the current screen — weight 600, an Ink stroke, and a 2px Ink
 rule along the bottom drawn inside the button — plus `aria-current`. Presets and
 the custom fields share one line where there is room, and wrap to two on a phone.
@@ -395,7 +397,8 @@ The play screen's way to enter digits by pointer or touch, after the NYT Sudoku 
 built entirely from `.control`; it adds no style of its own. Without it a phone could not
 enter a digit at all, because tapping a cell opens no keyboard.
 
-- **Contents:** the digits **1–5** and **Erase**. All five digits are always enabled,
+- **Contents:** a **Normal | Candidate** mode toggle across the top, then the digits
+  **1–5** and **Erase**. All five digits are always enabled,
   whatever the selected cell's cage size, because the keyboard accepts them too and the
   violation marker is what says a digit is too big. A key does exactly what the same key
   on the keyboard does, including taking a digit back when it is pressed twice.
@@ -424,15 +427,38 @@ enter a digit at all, because tapping a cell opens no keyboard.
   stops Firefox from showing the key as pressed. Handing it back does not scroll, or
   each tap on the pad below a grid would scroll a phone back up to it.
 - **The keyboard works from the pad.** With focus on a pad key, digits, Backspace,
-  Delete, the arrow keys and Escape go to the grid's own key handler, so a key does the
-  same wherever focus is. A digit leaves focus on the pad; an arrow key moves the
-  selection and focus follows it into the grid, because selection and focus are the
-  same thing. Enter, Space and Tab stay with the pad.
-- **Not built yet:** a **Normal | Candidate** mode toggle across the top, a segmented
-  pair marked like the editor's presets (weight 600, Ink stroke, 2px inner bottom rule,
-  plus `aria-pressed`). In Candidate mode each digit on the pad moves to the place its
-  candidate takes in a cell (the die positions above), so the pad shows what pressing it
-  will draw.
+  Delete, the arrow keys, Escape and Space go to the grid's own key handler, so a key
+  does the same wherever focus is. A digit leaves focus on the pad; an arrow key moves
+  the selection and focus follows it into the grid, because selection and focus are the
+  same thing. Space switches mode there too, rather than pressing the focused key, so
+  Enter is how a pad key is pressed from the keyboard. Tab leaves the pad.
+- **The mode toggle** is a `.segmented` pair, joined and marked like the editor's presets: the current
+  mode at weight 600 with an Ink stroke and a 2px Ink rule inside along its bottom, plus
+  `aria-pressed`. It is set at the Label size (0.9rem) with `--space-xs` padding, which
+  is what lets "Candidate" fit half of the 11.5rem beside the grid; it spans the keys
+  and never widens them, because `--measure-play` is summed from the pad's width.
+- **In Candidate mode** each key's digit moves to the place its candidate takes in a
+  cell — both draw on the shared `.die` rule in `src/style.css` — at a third of the
+  key's size, so the pad shows what a press will draw. Erase
+  keeps its glyph in the middle.
+- **Modes and shortcuts.** In Normal mode a digit is written; in Candidate mode it is
+  marked, or unmarked when already marked. **Space** switches mode. **Shift and a
+  digit** marks one candidate in either mode, read from the physical key, because with
+  Shift held a US English keyboard types `!` for 1. A layout that needs Shift to type a
+  digit at all, such as French AZERTY, still types the digit there; its players switch
+  mode with Space. Erase and Backspace take out a cell's digit, which brings its
+  candidates back into sight; from a cell with no digit, they take the candidates out.
+- **A held key presses once.** Space switches mode once, and a digit, Shift and a
+  digit, or a clear presses once, however long the key is held; a held candidate
+  would otherwise flip on and off, and a held Backspace would take out the digit and
+  then the candidates under it. The repeats are still kept from scrolling the page.
+  A held arrow key moves on every repeat, as it always has.
+- **Shortcuts are left alone.** Space or a digit with Ctrl, Alt or Meta is a chord —
+  Ctrl and Space switches input source on many systems, Ctrl and 1 switches tab — so
+  the grid does nothing with it, and Shift and Space is left alone too. Ctrl and Alt
+  together are read as AltGr, which Windows reports that way and which types
+  characters, so it is not a chord. The arrow keys and the clears work with any
+  modifier, as before the pad.
 
 ### Drawing feedback
 
