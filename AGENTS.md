@@ -23,7 +23,7 @@ solver and difficulty rating come later and are deliberately not built yet.
 the factory's quality gate is a lie. **Never report work as done without a passing
 `pnpm verify`.**
 
-E2E needs browsers installed once: `pnpm exec playwright install chromium`.
+E2E needs browsers installed once: `pnpm exec playwright install chromium webkit`.
 It is not part of `verify` on purpose — it is slow, and it belongs to the QA stage.
 
 ## The toolchain
