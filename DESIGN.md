@@ -9,6 +9,7 @@ colors:
   given: '#1a1d23'
   entry: '#2f6f9f'
   bad: '#b4342a'
+  hint: '#b7791f'
   control-rule: '#8a867e'
 typography:
   display:
@@ -104,13 +105,14 @@ character rather than an oversight to correct on sight.
 - Meaning is carried by **line weight** before colour: 1px hairline for adjacency, 2px ink for a real cage boundary.
 - **Two hands, two colours.** Printed clues are ink; what the player wrote is blue.
 - A single system font stack, one size ramp, **tabular numerals** in every grid.
-- Fully square. No radius anywhere in the project, and no shadow anywhere either.
+- Fully square. No radius anywhere in the project, and no elevation: nothing is lifted off the page.
 - The **only** width-independent media query in the codebase is `prefers-color-scheme`; every token has a light and a dark value.
 
 ## Colors
 
-A warm off-white and a near-black do all the structural work; exactly two chromatic
-colours exist, and both of them are load-bearing signals rather than brand.
+A warm off-white and a near-black do all the structural work; exactly three chromatic
+colours exist, and each is a load-bearing signal with one meaning rather than brand:
+blue is the player's hand, red is something broken, amber is where a hint points.
 
 ### Primary
 
@@ -119,6 +121,10 @@ colours exist, and both of them are load-bearing signals rather than brand.
 ### Secondary
 
 - **Violation Red** (#b4342a light / #e8776d dark): something is wrong. It marks the small triangle on a cell named by a broken rule, and it colours the editor's size refusal message. Contrast against paper is 5.81:1 in light and 6.17:1 in dark.
+
+### Tertiary
+
+- **Hint Amber** (#b7791f light / #e0b053 dark, `--hint`): where a hint is pointing, and only while a hint is on screen. It is never text and never a digit — it appears as a tint mixed into Paper behind a cell, and as the target's inner ring. Against paper it is 3.49:1 in light and 8.89:1 in dark, so the ring clears the 3:1 non-text minimum; it is too weak for text in light, which is one more reason it never carries any.
 
 ### Neutral
 
@@ -131,6 +137,11 @@ colours exist, and both of them are load-bearing signals rather than brand.
 - **Wash** (`--wash`, `color-mix` of Ink into Paper at 7% light / 9% dark): a neutral tint, never a hue. It fills a pressed control and the cage being drawn during a drag, and nothing else.
 
 ### Named Rules
+
+**The Three Signals Rule.** Each chromatic colour has exactly one meaning — Entry Blue
+the player's hand, Violation Red a broken rule, Hint Amber where a hint points — and
+none may be borrowed for another. A fourth chromatic colour needs a meaning none of
+the three can carry, and a decision that says so.
 
 **The Two Hands Rule.** A digit's colour says _who wrote it_, never how it is doing.
 Ink means the puzzle printed it; Entry Blue means the player wrote it. No third party
@@ -307,8 +318,11 @@ and a Draw/Erase toggle would add the screen's first mode.
 
 ## Elevation & Depth
 
-**There are no shadows in this project.** Not one `box-shadow` declaration exists.
-Depth is expressed entirely by **stroke weight and colour**: a 1px hairline in `--rule`
+**There is no elevation in this project.** Nothing casts a shadow: no `box-shadow`
+has an offset or a blur. The one `box-shadow` declaration is the hint target's 2px
+inset ring, which is a stroke that happens to be drawn that way — it lets the ring sit
+inside the cell alongside the selection's inset outline without either moving the
+grid's geometry. Depth is expressed entirely by **stroke weight and colour**: a 1px hairline in `--rule`
 says two cells are merely adjacent; a 2px stroke in `--cage-rule` says a real boundary
 falls here. The grid's outer frame is the same 2px ink, so a cage edge and the edge of
 the puzzle are the same kind of statement.
@@ -323,8 +337,10 @@ grid's readability depends on.
 **The Weight-Is-Semantic Rule.** Border weight in a grid means something specific and
 may not be used for emphasis. 1px hairline = adjacency inside a cage. 2px ink = a cage
 boundary or the edge of the puzzle. Thickening a border to make something look more
-important corrupts the only depth signal the grid has. Audit test: every 2px stroke in
-a grid coincides with an actual cage edge computed by `cageEdges()`.
+important corrupts the only depth signal the grid has. Audit test: every 2px Ink stroke
+in a grid coincides with an actual cage edge computed by `cageEdges()`. The hint
+target's ring is not a border: it is Hint Amber, inset, and present only while a hint
+is on screen.
 
 ## Shapes
 
@@ -337,8 +353,9 @@ cages are drawn by promoting four independent per-cell edge classes
 (`edge-top` / `-right` / `-bottom` / `-left`) to 2px, so a cage silhouette emerges from
 per-cell decisions rather than being drawn as an outline. The one non-rectangular shape
 in the whole system is the violation marker: a 0.7rem right triangle in a cell's
-top-right corner, built from a CSS border trick, with its hypotenuse the only diagonal
-line in the app.
+top-right corner, built from a CSS border trick, with its hypotenuse one of only two
+diagonal lines in the app. The other is the hint's stroke through a cell losing digits
+to an elimination (see Hint marks).
 
 The zero radius is recorded as the established state and is not sealed shut; if a later
 pass introduces curvature, it must do so as a deliberate system-wide decision, never as
@@ -362,6 +379,18 @@ decision serves.
 - **Candidates:** digits the player has marked as possible in an empty cell. Each digit has a fixed place on a 3×3 grid inside the cell, like the five on a die — 1 top-left, 2 top-right, 3 centre, 4 bottom-left, 5 bottom-right — so the eye always looks in the same spot for the same digit. They are Entry Blue, because the player wrote them (The Two Hands Rule), at weight 400 and a size derived from `--cell` (a 4.6th of it, never under 0.5rem). The places are drawn for the eye only and are `aria-hidden`; a screen reader is told "candidates 1, 3, 5" in one phrase. A cell holding a digit shows no candidates, and a given never takes any.
 - **Only the player changes candidates.** Placing a digit hides its cell's candidates rather than clearing them, and taking the digit out — Erase, Backspace, or pressing the digit again — shows them again, so trying a digit costs the player nothing. Marking a candidate on a cell with a digit replaces the digit, whatever the number: the digit comes out, the kept candidates show again, and the one pressed is marked among them — marked, never toggled off, so the press always ends with it showing. That makes a wrong digit quick to take back without leaving Candidate mode. A clear on a cell with no digit takes its candidates out. Nothing else is touched — not even a candidate the new digit rules out next door. The marks are a record of the player's thinking, and tidying them would be the app doing the deduction for them (Product Principle 2).
 - **Known limit, recorded:** at the 1.75rem cell floor (a 12-wide grid on a phone) candidates are barely legible. Scaling them up would break the cell's proportions, so this is accepted rather than solved.
+
+### Hint marks
+
+What the grid shows while a hint is on screen. They are **fills, never outlines**, so
+they cannot be mistaken for the selection (an inset outline) or the violation marker (a
+corner triangle), and a cell can carry the selection and a mark at once.
+
+- **Target** — the cell the hint is about: Hint Amber at 34% into Paper, plus a 2px inset Hint Amber ring, so it stands apart from the reasons in greyscale too. It stays marked through every stage.
+- **Reason** — a cell that makes the case for the step on show: Hint Amber at 16% into Paper, no ring.
+- **Losing** — a cell an elimination rules digits out of: one 3px diagonal stroke, bottom-left to top-right, in Ink at 55%. A pattern rather than a fill, so it reads apart from the reasons in greyscale, and it sits on the background image while the fills sit on the background colour, so a target that is also losing shows both.
+- **Dead** — an open cell with no digit left that fits: Violation Red at 22% into Paper. Red, because a dead end is something actually wrong (The Red Means Broken Rule).
+- **Nothing is marked on its own.** Every mark arrives with the hint panel's sentence and goes the moment the hint is closed, filled in, or the board changes.
 
 ### Violation Marker (signature component)
 
@@ -460,6 +489,27 @@ enter a digit at all, because tapping a cell opens no keyboard.
   characters, so it is not a chord. The arrow keys and the clears work with any
   modifier, as before the pad.
 
+### Hint Panel
+
+The play screen's staged hint: one main button and a close control above, the text
+it reveals below.
+
+- **The button never moves.** It walks every stage — Hint, Why?, Next, Fill in — from
+  the same spot and at one width. The close control has a column of its own beside it,
+  and the text that comes and goes sits underneath, so nothing above it changes.
+- **Held to the grid's width.** The panel is exactly as wide as the grid, capped at a
+  34rem measure, so its text lines up with the grid's edges at every width. Under the
+  grid the play screen works the width out from the grid's own cell clamp (its
+  `--grid-width`); beside the pad the grid's column already has that width.
+- **Text flush left, buttons centred.** An explanation runs to several lines, and a
+  centred paragraph gives the eye no edge to come back to. The buttons stay on the
+  axis that the grid and pad share.
+- **Its own group under the pad.** Below the breakpoint the panel is `--space-lg` off
+  the pad, the step between control groups, so it does not read as another row of keys.
+- **Steps are counted** ("Step 1 of 2", Label size at 0.7 opacity) when a hint takes
+  more than one step to explain, so a player pressing Next knows how far there is to go.
+  A hint explained in a single step shows no count.
+
 ### Drawing feedback
 
 The editor grid carries a crosshair cursor, and while a drag is in progress the
@@ -491,7 +541,7 @@ competes with the editor's Controls below it.
 
 - **Refusal** (editor size validation): Violation Red, `0.9rem`, `role="alert"`, no icon, no border, no background panel. A sentence, in red, where the problem is.
 - **Check result — problem** (editor layout check): Violation Red, `0.9rem`, same bare treatment. It names what is missing and what to do about it: "7 cells are not in a cage yet. Drag across them to draw one."
-- **Check result — pass**: the same region in **Ink, never green**. This is the rule most likely to be "fixed" by someone later, so the reason is written down: exactly two chromatic colours exist in this system and neither is a success colour, a third would break The Both-Themes Rule's audit, and celebrating a result contradicts the North Star's _nothing is celebrated_. The pass and problem states also differ in wording, so the message is legible with no colour at all.
+- **Check result — pass**: the same region in **Ink, never green**. This is the rule most likely to be "fixed" by someone later, so the reason is written down: each of the three chromatic colours already has a meaning and none of them is success (The Three Signals Rule), a fourth would break The Both-Themes Rule's audit, and celebrating a result contradicts the North Star's _nothing is celebrated_. The pass and problem states also differ in wording, so the message is legible with no colour at all.
 - **The check result region is rendered always and left empty** until a check runs, unlike Refusal, which is `v-if`'d. A polite `role="status"` must be in the DOM before its content changes to be announced; `role="alert"` is announced on insertion. Do not harmonise the two — they are different roles with different rules. An empty paragraph generates no line box, so nothing shifts.
 - **Wording discipline.** The passing sentence says the layout is _complete_, never that the puzzle is _valid_ or _solvable_. Structural completeness is not solvability: a layout can pass every check here and still have no solution. A unit test asserts the copy contains neither "solv" nor "valid" so this cannot quietly erode.
 
@@ -515,8 +565,9 @@ competes with the editor's Controls below it.
 - **Don't** build the generic SaaS dashboard — card-on-grey with an 8px radius, an indigo primary, a sidebar shell. This is the project's binding anti-reference.
 - **Don't** read "Newsprint" as texture. No paper grain, no sepia, no halftone, no torn edges, no nostalgic serifs, no faux-print colour cast. The metaphor is about printed-vs-written logic; the app must look current.
 - **Don't** use Entry Blue on anything that is not a player-entered digit or the player's selection ring.
+- **Don't** use Hint Amber for anything but where a hint points, and never as text: at 3.49:1 in light it is a mark, not a type colour.
 - **Don't** use Violation Red decoratively, as a brand colour, or on anything that is not actually wrong.
-- **Don't** introduce a success colour. A passing check is stated in Ink and in its wording; green would be a third chromatic colour in a system that has exactly two, and it would celebrate a result.
+- **Don't** introduce a success colour. A passing check is stated in Ink and in its wording; green would be a fourth chromatic colour in a system whose three each mean one thing, and it would celebrate a result.
 - **Don't** thicken a border for emphasis — 2px means "cage boundary" and nothing else.
 - **Don't** style a button or field outside `.control`, and don't give one a fill. A second control style is drift; a filled one out-contrasts the grid.
 - **Don't** assume `--rule` (#c9c5bd, 1.65:1 against paper) satisfies the 3:1 non-text contrast threshold. It does not. The cage boundary at 16:1 is what carries the structural meaning; if the hairline ever becomes load-bearing on its own, it needs a new value.
