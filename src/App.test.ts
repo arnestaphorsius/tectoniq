@@ -639,6 +639,24 @@ describe('hint', () => {
     expect(cell(wrapper, 5).text()).toBe('')
   })
 
+  it('a hint of several steps counts them, and one of a single step does not', async () => {
+    const progress = (wrapper: VueWrapper) => wrapper.find('[data-testid="hint-progress"]')
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+
+    await advance(wrapper).trigger('click')
+    expect(progress(wrapper).exists()).toBe(false)
+    await advance(wrapper).trigger('click')
+    expect(progress(wrapper).text()).toBe('Step 1 of 2')
+    await advance(wrapper).trigger('click')
+    expect(progress(wrapper).text()).toBe('Step 2 of 2')
+
+    const single = mountApp()
+    await hintAt(single, 2)
+    expect(single.find('[data-testid="hint-strategy"]').exists()).toBe(true)
+    expect(progress(single).exists()).toBe(false)
+  })
+
   it("after the elimination come the placement's why and Fill in", async () => {
     const wrapper = mountApp()
     await enter(wrapper, F_STUCK)

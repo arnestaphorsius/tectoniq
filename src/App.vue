@@ -152,7 +152,7 @@ function fillHint() {
       </nav>
     </div>
 
-    <div v-if="screen === 'play'" class="work">
+    <div v-if="screen === 'play'" class="work" :style="{ '--cols': SAMPLE_PUZZLE.width }">
       <div class="area-grid">
         <PuzzleGrid
           ref="grid"
@@ -276,8 +276,24 @@ h1 {
 /*
  * The hint panel acts on the grid, so it is held close to it. On a narrow screen
  * the pad sits between them, under the grid where a thumb can reach it.
+ *
+ * `--grid-width` is the width the grid comes out at: its own cell clamp, measured
+ * against this column, which is what the grid's frame measures too. The hint is
+ * held to it, so its text lines up with the grid's edges instead of running past
+ * them. `100cqi` resolves where the property is used, against this container.
  */
 .work {
+  --grid-width: calc(
+    var(--cols) *
+      clamp(
+        var(--cell-floor),
+        (min(100cqi, var(--grid-max)) - 4px) / var(--cols),
+        var(--cell-max)
+      ) +
+      4px
+  );
+
+  container-type: inline-size;
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -286,11 +302,20 @@ h1 {
 }
 
 /* Stretched, so the grid's frame has a definite width to measure its cells against. */
-.area-grid,
-.area-hint {
+.area-grid {
   justify-self: stretch;
   display: grid;
   justify-items: center;
+}
+
+/*
+ * Under the pad, the hint is a group of its own rather than a seventh row of keys,
+ * so it stands `--space-lg` off the pad — the step that separates control groups.
+ */
+.area-hint {
+  width: min(100%, var(--grid-width));
+  display: grid;
+  margin-top: calc(var(--space-lg) - var(--space-sm));
 }
 
 /*
@@ -334,6 +359,7 @@ h1 {
     grid-area: hint;
     width: 0;
     min-width: 100%;
+    margin-top: 0;
   }
 }
 </style>
