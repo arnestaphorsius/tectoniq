@@ -63,25 +63,15 @@
   --pad-gap: var(--space-lg);
   --measure-play: calc(var(--grid-max) + var(--pad-gap) + var(--pad-width) + 2 * var(--space-md));
 
-  color-scheme: light dark;
+  /*
+   * Light only, for every reader, whatever their system asks for: the grid has to
+   * read like the printed puzzle beside it. Declaring it keeps form controls and
+   * scrollbars light too. A dark theme is deferred; its values are in DESIGN.md.
+   */
+  color-scheme: light;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--ink);
   background: var(--paper);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #e8e6e1;
-    --paper: #16181c;
-    --rule: #3a3f47;
-    --cage-rule: #e8e6e1;
-    --given: #e8e6e1;
-    --entry: #7db8e0;
-    --bad: #e8776d;
-    --hint: #e0b053;
-    --control-rule: #6f747c;
-    --wash: color-mix(in srgb, var(--ink) 9%, var(--paper));
-  }
 }
 
 * {

@@ -106,13 +106,17 @@ character rather than an oversight to correct on sight.
 - **Two hands, two colours.** Printed clues are ink; what the player wrote is blue.
 - A single system font stack, one size ramp, **tabular numerals** in every grid.
 - Fully square. No radius anywhere in the project, and no elevation: nothing is lifted off the page.
-- The **only** width-independent media query in the codebase is `prefers-color-scheme`; every token has a light and a dark value.
+- **One light theme**, whatever the reader's system asks for. A dark theme is deferred, and its values are recorded here, not shipped.
 
 ## Colors
 
 A warm off-white and a near-black do all the structural work; exactly three chromatic
 colours exist, and each is a load-bearing signal with one meaning rather than brand:
 blue is the player's hand, red is something broken, amber is where a hint points.
+
+The app ships **one light theme**. The dark values given beside each colour below are
+the palette recorded for a deferred dark theme: they are not in the code, and nothing
+may assume a reader sees them.
 
 ### Primary
 
@@ -154,11 +158,15 @@ wrong — a broken rule of Tectonic, or an input the app refused. It is never a 
 colour, never a heading, never an accent, never decoration, and never "the danger
 colour" applied to a destructive button that has not yet gone wrong.
 
-**The Both-Themes Rule.** Every colour token is declared twice: once in `:root` and
-once in the `prefers-color-scheme: dark` block of `src/style.css`. A token defined in
-only one theme is a defect, not a shortcut. Audit test: every custom property in
-`:root` has a counterpart in the dark block, and the two blocks have identical key
-sets.
+**The Light-Only Rule.** The app has one theme, light, for every reader: the grid has
+to read like the printed puzzle on the table beside it. `:root` declares `color-scheme:
+light`, so form controls and scrollbars stay light under a dark system setting, and
+there is no `prefers-color-scheme` rule. A dark theme is deferred, not rejected. When
+it comes, it returns as a complete second palette with every token declared in both,
+starting from the dark values recorded in this section; a token with a dark value but
+not a light one, or the other way round, is a defect. Until then, a new colour token
+records its intended dark value here when it is added. Audit test: `src/style.css`
+contains no `prefers-color-scheme` and declares `color-scheme: light`.
 
 ## Typography
 
@@ -189,7 +197,7 @@ style. Audit test: no grid cell's width changes when its contents change from em
 **The Printed-Not-Painted Rule.** A given is distinguished from a player entry
 _twice over_ — by colour (Ink vs Entry Blue) and by weight (600 vs 400). The redundancy
 is required, not belt-and-braces: it is what keeps the distinction legible in
-greyscale, under colour-vision deficiency, and in the dark theme. Never reduce it to
+greyscale and under colour-vision deficiency, and will in a dark theme. Never reduce it to
 colour alone.
 
 ## Layout
@@ -236,8 +244,7 @@ frame's `max-width`, and the one width media query that moves the number pad bes
 grid. The cap sits on the frame rather than as a second `min()` term in the
 clamp because `100cqi` _is_ the frame's inline size — capping the frame makes the ceiling
 bind through arithmetic that is already there, and keeps the thing that scrolls the same
-as the thing that centres. Apart from the pad's query, `prefers-color-scheme` is the only
-`@media` rule.
+as the thing that centres. The pad's query is the only `@media` rule in the codebase.
 
 ### Named Rules
 
@@ -541,7 +548,7 @@ competes with the editor's Controls below it.
 
 - **Refusal** (editor size validation): Violation Red, `0.9rem`, `role="alert"`, no icon, no border, no background panel. A sentence, in red, where the problem is.
 - **Check result — problem** (editor layout check): Violation Red, `0.9rem`, same bare treatment. It names what is missing and what to do about it: "7 cells are not in a cage yet. Drag across them to draw one."
-- **Check result — pass**: the same region in **Ink, never green**. This is the rule most likely to be "fixed" by someone later, so the reason is written down: each of the three chromatic colours already has a meaning and none of them is success (The Three Signals Rule), a fourth would break The Both-Themes Rule's audit, and celebrating a result contradicts the North Star's _nothing is celebrated_. The pass and problem states also differ in wording, so the message is legible with no colour at all.
+- **Check result — pass**: the same region in **Ink, never green**. This is the rule most likely to be "fixed" by someone later, so the reason is written down: each of the three chromatic colours already has a meaning and none of them is success (The Three Signals Rule), a fourth would need its own meaning and its own deferred dark value, and celebrating a result contradicts the North Star's _nothing is celebrated_. The pass and problem states also differ in wording, so the message is legible with no colour at all.
 - **The check result region is rendered always and left empty** until a check runs, unlike Refusal, which is `v-if`'d. A polite `role="status"` must be in the DOM before its content changes to be announced; `role="alert"` is announced on insertion. Do not harmonise the two — they are different roles with different rules. An empty paragraph generates no line box, so nothing shifts.
 - **Wording discipline.** The passing sentence says the layout is _complete_, never that the puzzle is _valid_ or _solvable_. Structural completeness is not solvability: a layout can pass every check here and still have no solution. A unit test asserts the copy contains neither "solv" nor "valid" so this cannot quietly erode.
 
@@ -552,7 +559,7 @@ competes with the editor's Controls below it.
 - **Do** carry meaning in line weight first: 1px `--rule` for adjacency, 2px `--cage-rule` for a real boundary.
 - **Do** set `font-variant-numeric: tabular-nums` on every digit rendered in a grid.
 - **Do** distinguish a given from a player entry by **both** colour and weight (600 vs 400), never by colour alone.
-- **Do** declare every new colour token twice — in `:root` and in the `prefers-color-scheme: dark` block.
+- **Do** declare every new colour token once, in `:root`, and record its intended dark value in this file for the deferred dark theme (The Light-Only Rule).
 - **Do** hold selection outlines inside the cell with a negative `outline-offset`, so focus never changes the grid's geometry.
 - **Do** meet WCAG 2.2 AA — it is a binding product requirement (PRODUCT.md), not an aspiration. Every text colour currently in the system clears it: Ink 16.17:1 / 14.25:1, Entry Blue 5.17:1 / 8.30:1, Violation Red 5.81:1 / 6.17:1 against paper.
 - **Do** keep the grid the only thing on screen with real presence — if a control out-contrasts it, the control is wrong, not the grid.
