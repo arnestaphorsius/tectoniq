@@ -292,8 +292,10 @@ describe('candidates', () => {
     expect(wrapper.emitted('notes')).toEqual([[0, [1]]])
   })
 
-  it('Shift and a digit marks a candidate in Normal mode, by the physical key', async () => {
-    const wrapper = mountGrid()
+  // The grid leaves Shift's switch of mode to its caller, and presses in the mode it
+  // is given: here, the one Shift has already switched to.
+  it('Shift and a digit presses the physical key, in the mode given', async () => {
+    const wrapper = mountGrid({ mode: 'candidate' })
     await cell(wrapper, 0).trigger('click')
 
     // US English: Shift and 2 types "@".
@@ -301,6 +303,7 @@ describe('candidates', () => {
 
     expect(wrapper.emitted('notes')).toEqual([[0, [2]]])
     expect(wrapper.emitted('entry')).toBeUndefined()
+    expect(wrapper.emitted('update:mode')).toBeUndefined()
   })
 
   it('a layout that needs Shift to type a digit still writes the digit', async () => {
@@ -351,17 +354,6 @@ describe('candidates', () => {
     await pressOn(wrapper, 0, '4')
 
     expect(wrapper.emitted('notes')).toEqual([[0, [1, 4]]])
-  })
-
-  it('Shift and a digit replaces a digit in Normal mode too', async () => {
-    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
-    const wrapper = mountGrid({ board })
-    await cell(wrapper, 0).trigger('click')
-
-    await cell(wrapper, 0).trigger('keydown', { key: '#', code: 'Digit3', shiftKey: true })
-
-    expect(wrapper.emitted('entry')).toEqual([[0, null]])
-    expect(wrapper.emitted('notes')).toEqual([[0, [3]]])
   })
 
   it('a given takes no candidates', async () => {
@@ -511,7 +503,7 @@ describe('candidates', () => {
     })
 
     it('Shift and a digit marks once', async () => {
-      const wrapper = mountGrid()
+      const wrapper = mountGrid({ mode: 'candidate' })
       await cell(wrapper, 0).trigger('click')
 
       await hold(wrapper, { key: '#', code: 'Digit3', shiftKey: true })

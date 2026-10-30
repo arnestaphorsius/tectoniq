@@ -7,7 +7,7 @@ import PuzzleEditor from './components/PuzzleEditor.vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
 import { findHint } from '@/domain/hints/hint'
 import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
-import { emptyNotes, withNotes, type EntryMode, type Notes } from '@/domain/input/notes'
+import { emptyNotes, otherMode, withNotes, type EntryMode, type Notes } from '@/domain/input/notes'
 import { withEntry } from '@/domain/input/selection'
 import { emptyBoard, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 import { findViolations, isSolved } from '@/domain/puzzle/validate'
@@ -104,8 +104,52 @@ function onDocumentClick(event: MouseEvent) {
   selected.value = null
 }
 
-onMounted(() => document.addEventListener('click', onDocumentClick))
-onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
+/**
+ * Holding Shift switches the mode and letting go switches it back, as on the NYT
+ * Sudoku pad. The mode itself changes, not just how it is drawn, so the pad's toggle
+ * and keys, a digit typed and a key pressed on the pad all follow it with nothing
+ * of their own to keep in step. A mode picked on the toggle while Shift is held is
+ * switched on letting go, as NYT does.
+ *
+ * Shift is read from every key and pointer event on the page, in the capture phase
+ * so that nothing can stop one on the way, and before the grid sees a digit typed
+ * with it. Reading the event's own Shift, rather than counting Shift presses, keeps
+ * the mode right when Shift went down in another window: the first event here
+ * switches it. The window losing focus counts as letting go, because the Shift
+ * released in another window never comes back as a `keyup` here.
+ */
+let shiftSwitched = false
+
+function followShift(held: boolean) {
+  if (held === shiftSwitched) return
+  shiftSwitched = held
+  mode.value = otherMode(mode.value)
+}
+
+function onShiftEvent(event: KeyboardEvent | PointerEvent) {
+  followShift(event.shiftKey)
+}
+
+function onWindowBlur() {
+  followShift(false)
+}
+
+const CAPTURE = { capture: true }
+
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+  document.addEventListener('keydown', onShiftEvent, CAPTURE)
+  document.addEventListener('keyup', onShiftEvent, CAPTURE)
+  document.addEventListener('pointerdown', onShiftEvent, CAPTURE)
+  window.addEventListener('blur', onWindowBlur)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('keydown', onShiftEvent, CAPTURE)
+  document.removeEventListener('keyup', onShiftEvent, CAPTURE)
+  document.removeEventListener('pointerdown', onShiftEvent, CAPTURE)
+  window.removeEventListener('blur', onWindowBlur)
+})
 
 function advanceHint() {
   const current = hint.value

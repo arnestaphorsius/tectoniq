@@ -2,7 +2,13 @@
 import { computed, ref, watch } from 'vue'
 import { cageEdges } from '@/domain/puzzle/grid'
 import type { HintMarks } from './hintView'
-import { markedNote, toggledNote, type EntryMode, type Notes } from '@/domain/input/notes'
+import {
+  markedNote,
+  otherMode,
+  toggledNote,
+  type EntryMode,
+  type Notes,
+} from '@/domain/input/notes'
 import { isWritable, nextSelection, toggledEntry, type Direction } from '@/domain/input/selection'
 import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 import { valueAt, type Violation } from '@/domain/puzzle/validate'
@@ -109,7 +115,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === ' ') {
     if (event.shiftKey || isChord(event)) return
     event.preventDefault()
-    if (!event.repeat) mode.value = mode.value === 'normal' ? 'candidate' : 'normal'
+    if (!event.repeat) mode.value = otherMode(mode.value)
     return
   }
 
@@ -135,30 +141,31 @@ function onKeydown(event: KeyboardEvent) {
   // One press per press. A held digit would otherwise toggle its digit or its
   // candidate on and off with every repeat, and a held Backspace would take the
   // digit out and then the candidates kept under it.
-  if (!event.repeat) press(pressed.key, pressed.asNote)
+  if (!event.repeat) press(pressed)
 }
 
 /**
- * What a key event presses: a digit, or `null` for a clear, and whether a digit is
- * marked as a candidate whatever the mode. Undefined for any other key.
+ * What a key event presses: a digit, or `null` for a clear. Undefined for any other
+ * key.
  *
- * Shift and a digit marks a candidate. With Shift held, a layout whose digits are
- * unshifted types a symbol (`!` for 1 on US English), so the physical key says which
- * digit was meant. A layout that needs Shift to type a digit at all (French AZERTY)
- * still types the digit, and the first branch takes it as an ordinary press there;
- * such a player switches mode with Space instead. A digit in a chord is a shortcut,
- * not a press, so Ctrl, Shift and 1 is still the shortcut it was meant to be. A
- * clear takes any modifier, as it always has.
+ * Shift and a digit presses the digit in the mode Shift has switched to — the caller
+ * switches the mode while Shift is held, so the grid does nothing with Shift itself.
+ * With Shift held, a layout whose digits are unshifted types a symbol (`!` for 1 on
+ * US English), so the physical key says which digit was meant. A layout that needs
+ * Shift to type a digit at all (French AZERTY) types the digit itself, and the
+ * first branch takes it. A digit in a chord is a shortcut, not a press, so Ctrl,
+ * Shift and 1 is still the shortcut it was meant to be. A clear takes any modifier,
+ * as it always has.
  */
-function keyFor(event: KeyboardEvent): { key: Digit | null; asNote: boolean } | undefined {
-  if (event.key === 'Backspace' || event.key === 'Delete') return { key: null, asNote: false }
+function keyFor(event: KeyboardEvent): Digit | null | undefined {
+  if (event.key === 'Backspace' || event.key === 'Delete') return null
   if (isChord(event)) return undefined
 
   const typed = Number(event.key)
-  if (event.key.length === 1 && isDigit(typed)) return { key: typed, asNote: false }
+  if (event.key.length === 1 && isDigit(typed)) return typed
 
   const physical = Number(/^(?:Digit|Numpad)(\d)$/.exec(event.code)?.[1])
-  return event.shiftKey && isDigit(physical) ? { key: physical, asNote: true } : undefined
+  return event.shiftKey && isDigit(physical) ? physical : undefined
 }
 
 /**
@@ -167,7 +174,7 @@ function keyFor(event: KeyboardEvent): { key: Digit | null; asNote: boolean } | 
  * two can never disagree.
  *
  * In Normal mode a digit is written, and pressing it twice takes it back. In
- * Candidate mode, or with `asNote`, it is marked or unmarked as a candidate instead.
+ * Candidate mode it is marked or unmarked as a candidate instead.
  * On a cell holding a digit, a candidate replaces the digit: the digit comes out,
  * the candidates kept under it show again, and the one pressed is marked among them
  * — marked, not toggled, so the press always ends with it showing. A clear takes the
@@ -177,7 +184,7 @@ function keyFor(event: KeyboardEvent): { key: Digit | null; asNote: boolean } | 
  * A given holds the selection but never takes a digit, so the write is refused here
  * rather than at the board — the ticket's "cannot alter a given".
  */
-function press(key: Digit | null, asNote = false) {
+function press(key: Digit | null) {
   const cell = selected.value
   if (cell === null || !isWritable(props.puzzle, cell)) return
   const value = valueAt(props.puzzle, props.board, cell)
@@ -185,7 +192,7 @@ function press(key: Digit | null, asNote = false) {
   if (key === null) {
     if (value !== null) emit('entry', cell, null)
     else if ((props.notes[cell] ?? []).length > 0) emit('notes', cell, [])
-  } else if (asNote || mode.value === 'candidate') {
+  } else if (mode.value === 'candidate') {
     if (value === null) {
       emit('notes', cell, toggledNote(props.notes, cell, key))
     } else {

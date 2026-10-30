@@ -741,9 +741,10 @@ describe('candidates', () => {
       .map((note) => note.attributes('data-note') ?? '')
   }
 
-  /** Marks `digits` in `index` with Shift, which works in either mode. */
+  /** Marks `digits` in `index` with Shift held, from Normal mode, then lets go. */
   async function mark(wrapper: VueWrapper, index: number, digits: readonly number[]) {
     await cell(wrapper, index).trigger('click')
+    await cell(wrapper, index).trigger('keydown', { key: 'Shift', shiftKey: true })
     for (const digit of digits) {
       await cell(wrapper, index).trigger('keydown', {
         key: '!',
@@ -751,6 +752,7 @@ describe('candidates', () => {
         shiftKey: true,
       })
     }
+    await cell(wrapper, index).trigger('keyup', { key: 'Shift' })
   }
 
   it('the pad marks candidates in Candidate mode, and writes digits again in Normal', async () => {
@@ -884,5 +886,120 @@ describe('candidates', () => {
 
     expect(drawn(wrapper, 0)).toEqual(['1', '2'])
     expect(modeButton(wrapper, 'candidate').attributes('aria-pressed')).toBe('true')
+  })
+})
+
+describe('holding Shift', () => {
+  const key = (wrapper: VueWrapper, digit: number) => wrapper.get(`[data-digit="${digit}"]`)
+  const pressed = (wrapper: VueWrapper) =>
+    wrapper.get('[data-mode][aria-pressed="true"]').attributes('data-mode')
+
+  /** Shift going down or up, wherever focus is. */
+  async function shift(wrapper: VueWrapper, type: 'keydown' | 'keyup', init = {}) {
+    document.body.dispatchEvent(
+      new KeyboardEvent(type, {
+        key: 'Shift',
+        shiftKey: type === 'keydown',
+        bubbles: true,
+        ...init,
+      }),
+    )
+    await wrapper.vm.$nextTick()
+  }
+
+  it('switches the mode while it is down, and back on letting go', async () => {
+    const wrapper = mountApp()
+
+    await shift(wrapper, 'keydown')
+    expect(pressed(wrapper)).toBe('candidate')
+    expect(wrapper.findAll('[data-digit] .face[data-note]')).toHaveLength(5)
+
+    await shift(wrapper, 'keyup')
+    expect(pressed(wrapper)).toBe('normal')
+    expect(wrapper.findAll('[data-digit] .face[data-note]')).toHaveLength(0)
+  })
+
+  it('switches Candidate mode to Normal, and a digit typed with it is written', async () => {
+    const wrapper = mountApp()
+    await pressOn(wrapper, 0, ' ')
+
+    await cell(wrapper, 0).trigger('keydown', { key: 'Shift', shiftKey: true })
+    expect(pressed(wrapper)).toBe('normal')
+    await cell(wrapper, 0).trigger('keydown', { key: '@', code: 'Digit2', shiftKey: true })
+    await cell(wrapper, 0).trigger('keyup', { key: 'Shift' })
+
+    expect(cell(wrapper, 0).get('.digit').text()).toBe('2')
+    expect(pressed(wrapper)).toBe('candidate')
+  })
+
+  it('a pad key pressed with it is pressed in the switched mode', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+
+    await shift(wrapper, 'keydown')
+    await key(wrapper, 3).trigger('click')
+    await shift(wrapper, 'keyup')
+
+    expect(
+      cell(wrapper, 0)
+        .findAll('[data-note]')
+        .map((note) => note.text()),
+    ).toEqual(['3'])
+    expect(cell(wrapper, 0).find('.digit').exists()).toBe(false)
+    expect(pressed(wrapper)).toBe('normal')
+  })
+
+  it('a Shift-click on the pad switches the mode, though Shift went down elsewhere', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+
+    await key(wrapper, 3).trigger('pointerdown', { shiftKey: true })
+    await key(wrapper, 3).trigger('click', { shiftKey: true })
+
+    expect(
+      cell(wrapper, 0)
+        .findAll('[data-note]')
+        .map((note) => note.text()),
+    ).toEqual(['3'])
+    expect(pressed(wrapper)).toBe('candidate')
+  })
+
+  it('a mode picked on the toggle while it is down is switched on letting go', async () => {
+    const wrapper = mountApp()
+
+    await shift(wrapper, 'keydown')
+    await wrapper.get('[data-mode="normal"]').trigger('click')
+    expect(pressed(wrapper)).toBe('normal')
+    await shift(wrapper, 'keyup')
+
+    expect(pressed(wrapper)).toBe('candidate')
+  })
+
+  it('switches once, however long it is held', async () => {
+    const wrapper = mountApp()
+
+    await shift(wrapper, 'keydown')
+    await shift(wrapper, 'keydown', { repeat: true })
+    await shift(wrapper, 'keydown', { repeat: true })
+
+    expect(pressed(wrapper)).toBe('candidate')
+  })
+
+  it('released after it went down in another window, leaves the mode alone', async () => {
+    const wrapper = mountApp()
+
+    await shift(wrapper, 'keyup')
+
+    expect(pressed(wrapper)).toBe('normal')
+  })
+
+  it('counts as let go when the window loses focus', async () => {
+    const wrapper = mountApp()
+
+    await shift(wrapper, 'keydown')
+    window.dispatchEvent(new Event('blur'))
+    await wrapper.vm.$nextTick()
+
+    expect(pressed(wrapper)).toBe('normal')
   })
 })

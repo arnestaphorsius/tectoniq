@@ -478,11 +478,14 @@ enter a digit at all, because tapping a cell opens no keyboard.
   key's size, so the pad shows what a press will draw. Erase
   keeps its glyph in the middle.
 - **Modes and shortcuts.** In Normal mode a digit is written; in Candidate mode it is
-  marked, or unmarked when already marked. **Space** switches mode. **Shift and a
-  digit** marks one candidate in either mode, read from the physical key, because with
-  Shift held a US English keyboard types `!` for 1. A layout that needs Shift to type a
-  digit at all, such as French AZERTY, still types the digit there; its players switch
-  mode with Space. Erase and Backspace take out a cell's digit, which brings its
+  marked, or unmarked when already marked. **Space** switches mode. **Holding Shift**
+  switches it too, for as long as Shift is down, as on the NYT pad: the toggle and the
+  keys show the other mode, and a digit typed or pressed goes in that mode. A mode
+  picked on the toggle while Shift is held is switched on letting go, as NYT does. A
+  digit typed with Shift is read from the physical key, because with Shift held a US
+  English keyboard types `!` for 1. A layout that needs Shift to type a digit at all,
+  such as French AZERTY, therefore always types in the other mode on the top row; its
+  players have the numeric keypad. Erase and Backspace take out a cell's digit, which brings its
   candidates back into sight; from a cell with no digit, they take the candidates out.
 - **A held key presses once.** Space switches mode once, and a digit, Shift and a
   digit, or a clear presses once, however long the key is held; a held candidate

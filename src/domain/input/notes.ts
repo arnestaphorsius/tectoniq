@@ -14,9 +14,14 @@ export type Notes = readonly (readonly Digit[])[]
 
 /**
  * What a digit press does: write the digit, or mark it as a candidate. The player
- * switches between the two; Shift and a digit marks one candidate in either.
+ * switches between the two, for good or for as long as Shift is held.
  */
 export type EntryMode = 'normal' | 'candidate'
+
+/** The mode that `mode` switches to. */
+export function otherMode(mode: EntryMode): EntryMode {
+  return mode === 'normal' ? 'candidate' : 'normal'
+}
 
 /** No candidates marked anywhere, sized for `puzzle`. */
 export function emptyNotes(puzzle: Puzzle): Notes {
