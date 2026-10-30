@@ -26,6 +26,16 @@ const step = computed(() => shownStep(props.view))
 const atLast = computed(() => hint.value !== null && stage.value === lastStage(hint.value))
 
 /**
+ * Where an explanation stands among the hint's steps, so a player pressing Next
+ * knows how far there is to go. A hint explained in a single step needs no count.
+ */
+const progress = computed(() => {
+  if (hint.value === null || step.value === null) return null
+  const steps = lastStage(hint.value) - 1
+  return steps > 1 ? `Step ${stage.value - 1} of ${steps}` : null
+})
+
+/**
  * One button walks the stages, so its label says what pressing it reveals: the why
  * after the target, and then, while an elimination is on show, the next step.
  */
@@ -85,6 +95,7 @@ const message = computed(() => {
       <template v-if="hint">
         <p v-if="step === null">{{ HINT_MESSAGES.whereToLook }}</p>
         <template v-else>
+          <p v-if="progress" class="progress" data-testid="hint-progress">{{ progress }}</p>
           <p class="strategy" data-testid="hint-strategy" :data-step="step.kind">
             {{ step.strategy }}
           </p>
@@ -103,17 +114,20 @@ const message = computed(() => {
  * Controls above, text below, bound tightly. The player presses the same spot
  * through every stage, so nothing may move the main button: the text that comes
  * and goes and changes length sits under it, the close control has its own column
- * beside it, and the button keeps one width whatever its label says. The measure
- * is held short so an explanation reads as a sentence rather than a banner across
- * a wide grid.
+ * beside it, and the button keeps one width whatever its label says.
+ *
+ * The caller holds the panel to the grid's width, and the text is set flush left
+ * inside it: an explanation runs to several lines, and a centred paragraph gives
+ * the eye no edge to return to. The buttons stay centred, on the axis of the grid
+ * and the pad above them. The measure is capped so a wide grid's explanation still
+ * reads as a sentence rather than a banner.
  */
 .hint {
+  justify-self: center;
   width: 100%;
   display: grid;
-  justify-items: center;
   gap: var(--space-xs);
   max-width: 34rem;
-  text-align: center;
 }
 
 .hint-text:empty {
@@ -129,12 +143,20 @@ const message = computed(() => {
   margin-top: var(--space-2xs);
 }
 
+.progress {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.hint-text .progress + .strategy {
+  margin-top: 0;
+}
+
 .strategy {
   font-weight: 600;
 }
 
 .hint-actions {
-  justify-self: stretch;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: var(--space-xs);
