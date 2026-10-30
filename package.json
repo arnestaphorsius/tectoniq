@@ -14,7 +14,7 @@
     "test": "vp test run",
     "test:watch": "vp test",
     "test:e2e": "playwright test",
-    "verify": "vp check && pnpm typecheck && vp test run && vp build"
+    "verify": "vp check && pnpm typecheck && vp test run --coverage && vp build"
   },
   "dependencies": {
     "vue": "^3.5.44"

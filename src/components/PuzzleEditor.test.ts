@@ -328,6 +328,99 @@ describe('drawing', () => {
 
     expect(tinted(wrapper)).toEqual([])
   })
+
+  it('a pointer moving over the grid with nothing pressed draws nothing', async () => {
+    const wrapper = mountEditor()
+
+    for (const index of [0, 1, 2]) await cell(wrapper, index).trigger('pointermove')
+
+    expect(noInteriorBorders(wrapper)).toBe(true)
+    expect(tinted(wrapper)).toEqual([])
+  })
+
+  it('a press that misses every cell starts no drag', async () => {
+    const wrapper = mountEditor()
+
+    await wrapper.get('[data-testid="editor-grid"]').trigger('pointerdown')
+    for (const index of [0, 1]) await cell(wrapper, index).trigger('pointermove')
+
+    expect(noInteriorBorders(wrapper)).toBe(true)
+  })
+
+  it('a drag that strays off the cells and back carries on', async () => {
+    const wrapper = mountEditor()
+
+    await cell(wrapper, 0).trigger('pointerdown')
+    await wrapper.get('[data-testid="editor-grid"]').trigger('pointermove')
+    await cell(wrapper, 1).trigger('pointermove')
+    await cell(wrapper, 1).trigger('pointerup')
+
+    expect(joined(wrapper, 0, 1)).toBe(true)
+  })
+
+  it('a drag that comes back over its own cage carries on from it', async () => {
+    const wrapper = mountEditor()
+
+    await drag(wrapper, [0, 1, 0, 5])
+
+    expect(joined(wrapper, 0, 1)).toBe(true)
+    expect(joined(wrapper, 0, 5)).toBe(true)
+  })
+
+  it('nothing is drawn after release, until the next press', async () => {
+    const wrapper = mountEditor()
+    await drag(wrapper, [0, 1])
+
+    await cell(wrapper, 2).trigger('pointermove')
+
+    expect(joined(wrapper, 1, 2)).toBe(false)
+    expect(alone(wrapper, 2)).toBe(false)
+  })
+
+  it('a cancelled pointer ends the drag and keeps what it drew', async () => {
+    const wrapper = mountEditor()
+    await press(wrapper, [0, 1])
+
+    await cell(wrapper, 1).trigger('pointercancel')
+    await cell(wrapper, 2).trigger('pointermove')
+
+    expect(joined(wrapper, 0, 1)).toBe(true)
+    expect(joined(wrapper, 1, 2)).toBe(false)
+  })
+
+  /**
+   * A touch lands with implicit pointer capture on the cell it starts on, so every
+   * later move would report that cell. happy-dom has no capture of its own, so the
+   * cell is given one: the editor must hand it back on the press.
+   */
+  it('releases the implicit capture a touch press takes', async () => {
+    const wrapper = mountEditor()
+    const start = cell(wrapper, 0).element
+    const released: number[] = []
+    Object.assign(start, {
+      hasPointerCapture: (id: number) => id === 7,
+      releasePointerCapture: (id: number) => released.push(id),
+    })
+
+    await cell(wrapper, 0).trigger('pointerdown', { pointerId: 7 })
+
+    expect(released).toEqual([7])
+  })
+
+  it('leaves a press without capture alone', async () => {
+    const wrapper = mountEditor()
+    const start = cell(wrapper, 0).element
+    const released: number[] = []
+    Object.assign(start, {
+      hasPointerCapture: () => false,
+      releasePointerCapture: (id: number) => released.push(id),
+    })
+
+    await cell(wrapper, 0).trigger('pointerdown', { pointerId: 7 })
+
+    expect(released).toEqual([])
+    expect(tinted(wrapper)).toEqual([0])
+  })
 })
 
 describe('checking the layout', () => {

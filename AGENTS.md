@@ -8,22 +8,22 @@ solver and difficulty rating come later and are deliberately not built yet.
 
 ## Commands
 
-| Command           | What it does                                                 |
-| ----------------- | ------------------------------------------------------------ |
-| `pnpm dev`        | Dev server on :5173                                          |
-| `pnpm verify`     | **The quality gate.** Check, typecheck, unit test, build     |
-| `pnpm check`      | Format, lint and type-check `.ts` — Oxfmt + Oxlint, one pass |
-| `pnpm check:fix`  | Fix whatever Oxfmt and Oxlint can fix                        |
-| `pnpm typecheck`  | `vue-tsc` — the only thing that type-checks SFC templates    |
-| `pnpm test`       | Unit tests                                                   |
-| `pnpm test:watch` | Unit tests in watch mode                                     |
-| `pnpm test:e2e`   | Playwright end-to-end tests                                  |
+| Command           | What it does                                                           |
+| ----------------- | ---------------------------------------------------------------------- |
+| `pnpm dev`        | Dev server on :5173                                                    |
+| `pnpm verify`     | **The quality gate.** Check, typecheck, unit test with coverage, build |
+| `pnpm check`      | Format, lint and type-check `.ts` — Oxfmt + Oxlint, one pass           |
+| `pnpm check:fix`  | Fix whatever Oxfmt and Oxlint can fix                                  |
+| `pnpm typecheck`  | `vue-tsc` — the only thing that type-checks SFC templates              |
+| `pnpm test`       | Unit tests                                                             |
+| `pnpm test:watch` | Unit tests in watch mode                                               |
+| `pnpm test:e2e`   | Playwright end-to-end tests                                            |
 
 `pnpm verify` is the contract. CI runs exactly this command — if they ever diverge,
 the factory's quality gate is a lie. **Never report work as done without a passing
 `pnpm verify`.**
 
-E2E needs browsers installed once: `pnpm exec playwright install chromium`.
+E2E needs browsers installed once: `pnpm exec playwright install chromium webkit`.
 It is not part of `verify` on purpose — it is slow, and it belongs to the QA stage.
 
 ## The toolchain

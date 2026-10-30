@@ -198,6 +198,32 @@ describe('withCells', () => {
     expect(cageWith(puzzle, 0)).toEqual([0, 1])
     expect(cageWith(puzzle, 12)).toEqual([12, 13])
   })
+
+  it('a drag that comes back over its own cage carries on from it', () => {
+    // Back to 0 and on to 5: the revisit is skipped, not counted, and not a break.
+    const puzzle = withCells(grid(), [0, 1, 0, 5])
+
+    expect(cageWith(puzzle, 0)).toEqual([0, 1, 5])
+  })
+
+  it('a revisit does not count towards the five', () => {
+    const puzzle = withCells(grid(), [0, 1, 0, 1, 2, 3, 4])
+
+    expect(cageWith(puzzle, 0)).toEqual([0, 1, 2, 3, 4])
+  })
+
+  it('skips cells off the grid and draws the rest', () => {
+    const puzzle = withCells(grid(), [-1, 0, 25, 1])
+
+    expect(cageWith(puzzle, 0)).toEqual([0, 1])
+  })
+
+  it('returns the same puzzle when the path draws nothing', () => {
+    const before = grid()
+
+    expect(withCells(before, [])).toBe(before)
+    expect(withCells(before, [-1, 25])).toBe(before)
+  })
 })
 
 describe('invariants', () => {

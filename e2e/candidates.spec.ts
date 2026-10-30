@@ -64,7 +64,11 @@ test.describe('candidates', () => {
     await expect(cell(page, 0)).toHaveText('')
   })
 
-  test('Space on a focused pad key switches mode and presses nothing', async ({ page }) => {
+  test('Space on a focused pad key switches mode and presses nothing', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName === 'webkit', 'WebKit on macOS tabs to text fields, not buttons')
     await page.goto('/')
 
     await cell(page, 0).click()

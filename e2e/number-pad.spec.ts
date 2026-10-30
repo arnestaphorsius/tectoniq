@@ -57,7 +57,11 @@ test.describe('number pad', () => {
     expect(await page.evaluate(() => window.scrollY)).toBe(scrolled)
   })
 
-  test('with focus on the pad, the keyboard still plays the grid', async ({ page }) => {
+  test('with focus on the pad, the keyboard still plays the grid', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName === 'webkit', 'WebKit on macOS tabs to text fields, not buttons')
     await page.goto('/')
 
     await cell(page, 0).click()
