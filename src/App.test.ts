@@ -932,6 +932,23 @@ describe('holding Shift', () => {
     expect(pressed(wrapper)).toBe('candidate')
   })
 
+  it('switches the mode for a layout that needs it to type a digit at all', async () => {
+    const wrapper = mountApp()
+    await cell(wrapper, 0).trigger('click')
+
+    // French AZERTY: Shift and the 2 key types "2".
+    await cell(wrapper, 0).trigger('keydown', { key: 'Shift', shiftKey: true })
+    await cell(wrapper, 0).trigger('keydown', { key: '2', code: 'Digit2', shiftKey: true })
+    await cell(wrapper, 0).trigger('keyup', { key: 'Shift' })
+
+    expect(
+      cell(wrapper, 0)
+        .findAll('[data-note]')
+        .map((note) => note.text()),
+    ).toEqual(['2'])
+    expect(cell(wrapper, 0).find('.digit').exists()).toBe(false)
+  })
+
   it('a pad key pressed with it is pressed in the switched mode', async () => {
     const wrapper = mountApp()
     await cell(wrapper, 0).trigger('click')

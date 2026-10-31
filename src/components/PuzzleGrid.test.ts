@@ -306,7 +306,7 @@ describe('candidates', () => {
     expect(wrapper.emitted('update:mode')).toBeUndefined()
   })
 
-  it('a layout that needs Shift to type a digit still writes the digit', async () => {
+  it('a layout that needs Shift to type a digit presses the digit it types', async () => {
     const wrapper = mountGrid()
     await cell(wrapper, 0).trigger('click')
 

@@ -153,9 +153,10 @@ function onKeydown(event: KeyboardEvent) {
  * With Shift held, a layout whose digits are unshifted types a symbol (`!` for 1 on
  * US English), so the physical key says which digit was meant. A layout that needs
  * Shift to type a digit at all (French AZERTY) types the digit itself, and the
- * first branch takes it. A digit in a chord is a shortcut, not a press, so Ctrl,
- * Shift and 1 is still the shortcut it was meant to be. A clear takes any modifier,
- * as it always has.
+ * first branch takes it — in the switched mode all the same, because Shift is held;
+ * such a player types a plain digit on the numeric keypad. A digit in a chord is a
+ * shortcut, not a press, so Ctrl, Shift and 1 is still the shortcut it was meant to
+ * be. A clear takes any modifier, as it always has.
  */
 function keyFor(event: KeyboardEvent): Digit | null | undefined {
   if (event.key === 'Backspace' || event.key === 'Delete') return null

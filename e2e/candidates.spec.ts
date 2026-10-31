@@ -2,9 +2,10 @@ import { expect, test, type Page } from '@playwright/test'
 
 /**
  * Marking candidates in a real browser. The component tests prove what each press
- * does; these prove what only real input can: that Shift and a digit arrives as the
- * physical key the grid reads, and that Space on a focused pad key switches mode
- * rather than pressing the key, which a browser does on the key's release.
+ * does; these prove what only real input can: that Shift held switches the mode and
+ * its release switches it back, that Shift and a digit arrives as the physical key
+ * the grid reads, and that Space on a focused pad key switches mode rather than
+ * pressing the key, which a browser does on the key's release.
  */
 
 const cell = (page: Page, index: number) => page.locator(`[data-cell="${index}"]`)
@@ -30,14 +31,40 @@ test.describe('candidates', () => {
     await expect(drawn(page, 0)).toHaveText(['1', '3'])
   })
 
-  test('Shift and a digit marks a candidate without leaving Normal mode', async ({ page }) => {
+  test('holding Shift switches to Candidate mode until it is let go', async ({ page }) => {
+    await page.goto('/')
+    const candidate = page.locator('[data-mode="candidate"]')
+
+    await cell(page, 0).click()
+    await page.keyboard.down('Shift')
+    await expect(candidate).toHaveAttribute('aria-pressed', 'true')
+    await page.keyboard.press('Digit2')
+    await page.keyboard.press('Digit4')
+    await key(page, 5).click()
+    await page.keyboard.up('Shift')
+
+    await expect(drawn(page, 0)).toHaveText(['2', '4', '5'])
+    await expect(page.locator('[data-mode="normal"]')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('holding Shift in Candidate mode writes a digit', async ({ page }) => {
     await page.goto('/')
 
     await cell(page, 0).click()
+    await page.keyboard.press('Space')
     await page.keyboard.press('Shift+Digit2')
-    await page.keyboard.press('Shift+Digit4')
 
-    await expect(drawn(page, 0)).toHaveText(['2', '4'])
+    await expect(cell(page, 0)).toHaveText('2')
+    await expect(page.locator('[data-mode="candidate"]')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('a Shift-click on a pad key marks a candidate', async ({ page }) => {
+    await page.goto('/')
+
+    await cell(page, 0).click()
+    await key(page, 3).click({ modifiers: ['Shift'] })
+
+    await expect(drawn(page, 0)).toHaveText(['3'])
     await expect(page.locator('[data-mode="normal"]')).toHaveAttribute('aria-pressed', 'true')
   })
 
