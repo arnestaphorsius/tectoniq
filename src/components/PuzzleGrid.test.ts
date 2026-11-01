@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vite-plus/test'
-import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { SMALL_PUZZLE } from '@/domain/puzzle/smallPuzzle'
 import { emptyNotes, withNotes, type EntryMode, type Notes } from '@/domain/input/notes'
 import { emptyBoard, type Board, type Puzzle } from '@/domain/puzzle/types'
 import { findViolations, type Violation } from '@/domain/puzzle/validate'
@@ -10,7 +10,7 @@ import PuzzleGrid from './PuzzleGrid.vue'
 enableAutoUnmount(afterEach)
 
 /**
- * A single column, so left and right have nowhere to go. `SAMPLE_PUZZLE` has no
+ * A single column, so left and right have nowhere to go. `SMALL_PUZZLE` has no
  * one-cell line, which is why AC-26 needs its own fixture.
  */
 // prettier-ignore
@@ -38,7 +38,7 @@ function mountGrid(
     mode?: EntryMode
   } = {},
 ) {
-  const puzzle = options.puzzle ?? SAMPLE_PUZZLE
+  const puzzle = options.puzzle ?? SMALL_PUZZLE
   return mount(PuzzleGrid, {
     props: {
       puzzle,
@@ -195,8 +195,8 @@ describe('givens', () => {
 
 describe('violation marker', () => {
   /** Cell 0 holding a 3 touches the given 3 at cell 4, so both are named. */
-  const board: Board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 3 : null))
-  const violations = findViolations(SAMPLE_PUZZLE, board)
+  const board: Board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 3 : null))
+  const violations = findViolations(SMALL_PUZZLE, board)
 
   it('the marker carries role=status', () => {
     const wrapper = mountGrid({ board, violations })
@@ -231,16 +231,16 @@ describe('violation marker', () => {
   it('a cell no violation names shows no marker', () => {
     const wrapper = mountGrid({ board, violations })
 
-    // Cell 7 is a given the sample leaves legal, so nothing marks it.
+    // Cell 7 is a given the small puzzle leaves legal, so nothing marks it.
     expect(cell(wrapper, 7).find('[data-testid="violation-marker"]').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="violation-marker"]')).toHaveLength(2)
   })
 })
 
 describe('candidates', () => {
-  /** Notes with `digits` marked in cell 0 of the sample. */
+  /** Notes with `digits` marked in cell 0 of the small puzzle. */
   const marked = (...digits: Parameters<typeof withNotes>[2]) =>
-    withNotes(emptyNotes(SAMPLE_PUZZLE), 0, digits)
+    withNotes(emptyNotes(SMALL_PUZZLE), 0, digits)
 
   /** The candidates drawn in a cell, in the order they appear. */
   function drawn(wrapper: VueWrapper, index: number): string[] {
@@ -260,7 +260,7 @@ describe('candidates', () => {
   })
 
   it('draws no candidates under a digit', () => {
-    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
     const wrapper = mountGrid({ board, notes: marked(1, 3) })
 
     expect(cell(wrapper, 0).find('[data-testid="candidates"]').exists()).toBe(false)
@@ -328,7 +328,7 @@ describe('candidates', () => {
   })
 
   it('a candidate replaces the digit a cell holds, among the kept candidates', async () => {
-    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
     const wrapper = mountGrid({ board, notes: marked(1, 4), mode: 'candidate' })
 
     await pressOn(wrapper, 0, '3')
@@ -338,7 +338,7 @@ describe('candidates', () => {
   })
 
   it('a candidate the same as the digit replaces it too', async () => {
-    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
     const wrapper = mountGrid({ board, mode: 'candidate' })
 
     await pressOn(wrapper, 0, '2')
@@ -348,7 +348,7 @@ describe('candidates', () => {
   })
 
   it('replacing a digit marks a kept candidate rather than toggling it off', async () => {
-    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
     const wrapper = mountGrid({ board, notes: marked(1, 4), mode: 'candidate' })
 
     await pressOn(wrapper, 0, '4')
@@ -359,7 +359,7 @@ describe('candidates', () => {
   it('a given takes no candidates', async () => {
     const wrapper = mountGrid({ mode: 'candidate' })
 
-    // Cell 4 is the sample's given 3.
+    // Cell 4 is the small puzzle's given 3.
     await pressOn(wrapper, 4, '1')
 
     expect(wrapper.emitted('notes')).toBeUndefined()
@@ -375,7 +375,7 @@ describe('candidates', () => {
   })
 
   it('a clear on a cell with a digit takes only the digit out', async () => {
-    const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
     const wrapper = mountGrid({ board, notes: marked(1, 3) })
 
     await pressOn(wrapper, 0, 'Delete')
@@ -464,7 +464,7 @@ describe('candidates', () => {
   it.each(['ctrlKey', 'altKey', 'metaKey', 'shiftKey'] as const)(
     'Backspace with %s still clears, as it always has',
     async (modifier) => {
-      const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+      const board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
       const wrapper = mountGrid({ board })
       await cell(wrapper, 0).trigger('click')
 
@@ -521,7 +521,7 @@ describe('candidates', () => {
     })
 
     it('Backspace clears the digit and leaves the candidates under it', async () => {
-      const board = emptyBoard(SAMPLE_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+      const board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
       const wrapper = mountGrid({ board, notes: marked(1, 3) })
       await cell(wrapper, 0).trigger('click')
 

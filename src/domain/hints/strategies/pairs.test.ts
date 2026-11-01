@@ -3,12 +3,12 @@ import { candidatesFor, type Candidates } from '@/domain/hints/candidates'
 import { cellCount } from '@/domain/puzzle/grid'
 import { F_STUCK } from '@/domain/hints/fixtures'
 import { NAKED_PAIR, TOUCHING_PAIR } from './pairs'
-import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { SMALL_PUZZLE } from '@/domain/puzzle/smallPuzzle'
 import type { Elimination, Step, Strategy } from './step'
 import { emptyBoard, type Digit } from '@/domain/puzzle/types'
 
 /*
- * Most maps here are written by hand on the sample's cage layout, with every cell
+ * Most maps here are written by hand on the small puzzle's cage layout, with every cell
  * not listed treated as filled. The strategies read only the cages and the map.
  *
  *    0  1  2  3      0 0 1 1
@@ -20,14 +20,14 @@ import { emptyBoard, type Digit } from '@/domain/puzzle/types'
 
 /** A candidate map with `open` as the only open cells. */
 function map(open: Readonly<Record<number, readonly Digit[]>>): Candidates {
-  return Array.from({ length: cellCount(SAMPLE_PUZZLE) }, (_, cell) => {
+  return Array.from({ length: cellCount(SMALL_PUZZLE) }, (_, cell) => {
     const digits = open[cell]
     return digits ? new Set(digits) : null
   })
 }
 
 function run(strategy: Strategy, candidates: Candidates): Step | null {
-  return strategy.apply(SAMPLE_PUZZLE, emptyBoard(SAMPLE_PUZZLE), candidates)
+  return strategy.apply(SMALL_PUZZLE, emptyBoard(SMALL_PUZZLE), candidates)
 }
 
 function elimination(step: Step | null): Elimination {
@@ -73,8 +73,8 @@ describe('Naked Pairs A', () => {
   })
 
   it('does not fire when nothing would be removed', () => {
-    // The sample's stuck state: 8 and 9 are {1,2}, and the rest of cage 2 is filled.
-    expect(run(NAKED_PAIR, candidatesFor(SAMPLE_PUZZLE, F_STUCK))).toBeNull()
+    // The small puzzle's stuck state: 8 and 9 are {1,2}, and the rest of cage 2 is filled.
+    expect(run(NAKED_PAIR, candidatesFor(SMALL_PUZZLE, F_STUCK))).toBeNull()
   })
 
   it('does not fire on unequal two-candidate sets', () => {
@@ -160,7 +160,7 @@ describe('Naked Pairs B', () => {
   })
 
   it('fires on a pair inside one cage', () => {
-    const step = elimination(run(TOUCHING_PAIR, candidatesFor(SAMPLE_PUZZLE, F_STUCK)))
+    const step = elimination(run(TOUCHING_PAIR, candidatesFor(SMALL_PUZZLE, F_STUCK)))
 
     expect(step.justifying).toEqual([8, 9])
     expect(step.removals).toEqual([{ cell: 5, digits: [1, 2] }])
@@ -173,13 +173,13 @@ describe('Naked Pairs B', () => {
     const diagonal = map({ 4: [3, 4, 5], 5: [3, 4], 9: [4, 5], 10: [3, 4], 14: [3, 4, 5] })
     expect(touchedCells(elimination(run(TOUCHING_PAIR, diagonal)))).toEqual([9])
 
-    // At the sample's stuck state, 6 touches 9 but not 8, and keeps its 1.
-    const stuck = elimination(run(TOUCHING_PAIR, candidatesFor(SAMPLE_PUZZLE, F_STUCK)))
+    // At the small puzzle's stuck state, 6 touches 9 but not 8, and keeps its 1.
+    const stuck = elimination(run(TOUCHING_PAIR, candidatesFor(SMALL_PUZZLE, F_STUCK)))
     expect(touchedCells(stuck)).toEqual([5])
   })
 
   it('explains the pair by the touching rule', () => {
-    const { explanation } = elimination(run(TOUCHING_PAIR, candidatesFor(SAMPLE_PUZZLE, F_STUCK)))
+    const { explanation } = elimination(run(TOUCHING_PAIR, candidatesFor(SMALL_PUZZLE, F_STUCK)))
 
     expect(explanation).toMatch(/\b1\b/)
     expect(explanation).toMatch(/\b2\b/)

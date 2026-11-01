@@ -18,11 +18,14 @@ const marked = (page: Page, index: number) => cell(page, index).getByTestId('vio
  */
 // prettier-ignore
 const SOLUTION: readonly (number | null)[] = [
-  1,    2,    3,    4,
-  null, 4,    1,    null,
-  1,    2,    null, null,
-  null, 4,    5,    1,
-  3,    1,    2,    null,
+  1,    3,    1,    null, 3,    2,    1,    5,
+  4,    2,    4,    5,    1,    null, 3,    null,
+  null, 5,    1,    3,    4,    2,    1,    2,
+  1,    4,    2,    5,    1,    5,    4,    null,
+  null, 5,    1,    3,    4,    2,    1,    2,
+  1,    3,    4,    2,    1,    3,    4,    3,
+  5,    2,    5,    3,    5,    2,    1,    null,
+  1,    4,    1,    2,    1,    null, 3,    2,
 ]
 
 /** Types the solution into every open cell, one click and one key each. */
@@ -38,47 +41,48 @@ test.describe('the rules', () => {
   test('a digit touching its twin is marked, with the given it collided with', async ({ page }) => {
     await page.goto('/')
 
-    // Cell 0 touches the given 3 at cell 4 — diagonally would do too, this is above.
-    await cell(page, 0).click()
-    await page.keyboard.press('3')
+    // Cell 40 sits below the given 2 at cell 32 — diagonally would do too — and is in
+    // another cage, so rule 3 is the only rule this can break.
+    await cell(page, 40).click()
+    await page.keyboard.press('2')
 
-    await expect(marked(page, 0)).toHaveCount(1)
-    await expect(marked(page, 4)).toHaveCount(1)
+    await expect(marked(page, 40)).toHaveCount(1)
+    await expect(marked(page, 32)).toHaveCount(1)
     await expect(markers(page)).toHaveCount(2)
   })
 
   test('a diagonal twin breaks the rule too', async ({ page }) => {
     await page.goto('/')
 
-    // Cell 14 meets the given 2 at cell 11 only at a corner, and is in another cage,
+    // Cell 12 meets the given 2 at cell 3 only at a corner, and is in another cage,
     // so rule 3 is the only rule this can break.
-    await cell(page, 14).click()
+    await cell(page, 12).click()
     await page.keyboard.press('2')
 
-    await expect(marked(page, 14)).toHaveCount(1)
-    await expect(marked(page, 11)).toHaveCount(1)
+    await expect(marked(page, 12)).toHaveCount(1)
+    await expect(marked(page, 3)).toHaveCount(1)
   })
 
   test('mending the clash takes every marker away', async ({ page }) => {
     await page.goto('/')
-    await cell(page, 0).click()
-    await page.keyboard.press('3')
+    await cell(page, 40).click()
+    await page.keyboard.press('2')
     await expect(markers(page)).toHaveCount(2)
 
     await page.keyboard.press('1')
 
     await expect(markers(page)).toHaveCount(0)
-    await expect(cell(page, 0)).toHaveText('1')
+    await expect(cell(page, 40)).toHaveText('1')
   })
 
   test('a digit too big for its cage is marked', async ({ page }) => {
     await page.goto('/')
 
-    // Cell 17 is a cage of one, so only 1 fits.
-    await cell(page, 17).click()
+    // Cell 56 is a cage of one, so only 1 fits.
+    await cell(page, 56).click()
     await page.keyboard.press('2')
 
-    await expect(marked(page, 17)).toHaveCount(1)
+    await expect(marked(page, 56)).toHaveCount(1)
   })
 
   test('a given stands whatever is pressed on it, by keyboard or by pad', async ({
@@ -89,7 +93,7 @@ test.describe('the rules', () => {
     // for Backspace is to go back a page — taking the board with it.
     test.fixme(browserName === 'webkit', 'Backspace on a given navigates back in WebKit')
     await page.goto('/')
-    await cell(page, 4).click()
+    await cell(page, 3).click()
 
     await page.keyboard.press('1')
     await page.keyboard.press('Backspace')
@@ -98,8 +102,8 @@ test.describe('the rules', () => {
     await page.locator('[data-digit="5"]').click()
     await page.getByTestId('pad-erase').click()
 
-    await expect(cell(page, 4)).toHaveText('3')
-    await expect(cell(page, 4).locator('[data-note]')).toHaveCount(0)
+    await expect(cell(page, 3)).toHaveText('2')
+    await expect(cell(page, 3).locator('[data-note]')).toHaveCount(0)
   })
 })
 

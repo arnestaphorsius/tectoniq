@@ -44,7 +44,8 @@ able to state the reasoning is the claim.
 
 This positioning is confirmed as the intended direction and is **only partly
 implemented**. The staged hint explains its digit in terms of the rules, but only
-for five strategies and only on the sample puzzle. That is a first step, not the
+for five strategies, and they solve only the small test puzzle outright: on the
+sample they stall after a few digits. That is a first step, not the
 claim: nothing user-facing may yet say that Tectoniq teaches the deduction.
 
 ## Operating Context
@@ -58,7 +59,7 @@ The workflow the product exists to serve:
 3. They enter the **givens** (the printed clues). _Not built yet._
 4. They **play** the puzzle, entering digits and seeing rule violations flagged.
 5. They ask for a **hint**, which points at a cell, then explains why its digit is
-   forced. _Built for the sample puzzle only._
+   forced. _Built, but stalls a few digits into the sample._
 
 **Device class is deliberately undecided.** Phone, tablet, and desktop are to be
 treated as equal; no future work may privilege one over the others without a
@@ -155,11 +156,15 @@ kind. None may be assumed to exist.
 
 ## Evidence on Hand
 
-- `src/domain/samplePuzzle.ts` — one real 4×5 sample puzzle with givens. This is the
-  only puzzle content in the project.
+- `src/domain/puzzle/samplePuzzle.ts` — the 8×8 sample the play screen opens on,
+  Denksport's example of a five-star Tectonic. The strategies stall a few placements
+  into it.
+- `src/domain/puzzle/smallPuzzle.ts` — the 4×5 puzzle that was the first sample,
+  kept as the test fixture because the strategies solve it outright. These two are
+  the only puzzle content in the project.
 - `AGENTS.md` — the authoritative statement of the rules, the architecture, and the
   development process.
-- `src/domain/hintCopy.ts` — every word a hint shows the player, including the
+- `src/domain/hints/copy.ts` — every word a hint shows the player, including the
   explanation for each strategy.
 
 **Absences future work must not fabricate:** no users, no usage data, no

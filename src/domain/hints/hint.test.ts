@@ -13,10 +13,10 @@ import {
   F_START,
   F_STUCK,
   PAIRS_PUZZLE,
-  sampleWith,
+  smallWith,
 } from './fixtures'
 import { NAKED_PAIR, TOUCHING_PAIR } from '@/domain/hints/strategies/pairs'
-import { SAMPLE_PUZZLE, SAMPLE_SOLUTION, SAMPLE_SOLVED_BOARD } from '@/domain/puzzle/samplePuzzle'
+import { SMALL_PUZZLE, SMALL_SOLUTION, SMALL_SOLVED_BOARD } from '@/domain/puzzle/smallPuzzle'
 import {
   CROWN,
   FULL_BLOCK,
@@ -79,7 +79,7 @@ const tripwire: Strategy = {
 }
 
 function hint(board: Board, strategies?: readonly Strategy[]): HintResult {
-  return findHint(SAMPLE_PUZZLE, board, strategies)
+  return findHint(SMALL_PUZZLE, board, strategies)
 }
 
 function placementOf(result: HintResult): { placement: Placement; leadUp: readonly Elimination[] } {
@@ -133,7 +133,7 @@ describe('loop', () => {
 
   it('violations come first', () => {
     // A 3 at cell 5 touches the given 3 at cell 4.
-    const board = sampleWith({ 5: 3 })
+    const board = smallWith({ 5: 3 })
 
     expect(hint(board, [tripwire])).toEqual({ kind: 'violations' })
   })
@@ -209,9 +209,9 @@ describe('pair strategies', () => {
   }
 
   it('an S1–S5 placement wins over a pair elimination', () => {
-    const candidates = candidatesFor(SAMPLE_PUZZLE, F_START)
-    expect(NAKED_PAIR.apply(SAMPLE_PUZZLE, F_START, candidates)).not.toBeNull()
-    expect(TOUCHING_PAIR.apply(SAMPLE_PUZZLE, F_START, candidates)).not.toBeNull()
+    const candidates = candidatesFor(SMALL_PUZZLE, F_START)
+    expect(NAKED_PAIR.apply(SMALL_PUZZLE, F_START, candidates)).not.toBeNull()
+    expect(TOUCHING_PAIR.apply(SMALL_PUZZLE, F_START, candidates)).not.toBeNull()
 
     const { placement, leadUp } = placementOf(hint(F_START))
 
@@ -241,10 +241,10 @@ describe('pair strategies', () => {
     })
   })
 
-  it("Naked Pairs B unlocks the sample's stuck state", () => {
-    const candidates = stuckOn(SAMPLE_PUZZLE, F_STUCK)
-    expect(NAKED_PAIR.apply(SAMPLE_PUZZLE, F_STUCK, candidates)).toBeNull()
-    const pair = TOUCHING_PAIR.apply(SAMPLE_PUZZLE, F_STUCK, candidates)
+  it("Naked Pairs B unlocks the small puzzle's stuck state", () => {
+    const candidates = stuckOn(SMALL_PUZZLE, F_STUCK)
+    expect(NAKED_PAIR.apply(SMALL_PUZZLE, F_STUCK, candidates)).toBeNull()
+    const pair = TOUCHING_PAIR.apply(SMALL_PUZZLE, F_STUCK, candidates)
     expect(pair).toMatchObject({ justifying: [8, 9], removals: [{ cell: 5, digits: [1, 2] }] })
 
     const { placement, leadUp } = placementOf(hint(F_STUCK))
@@ -269,18 +269,18 @@ describe('pair strategies', () => {
   })
 })
 
-describe('sample', () => {
-  it('hints from the givens solve the sample', () => {
+describe('small puzzle', () => {
+  it('hints from the givens solve the small puzzle', () => {
     let board: Board = F_START
 
     for (let result = hint(board); result.kind === 'hint'; result = hint(board)) {
       const { cell, digit } = result.placement
-      expect(digit).toBe(SAMPLE_SOLUTION[cell])
+      expect(digit).toBe(SMALL_SOLUTION[cell])
       board = withEntry(board, cell, digit)
     }
 
     // A board holds entries only, so the givens are read through valueAt.
-    const shown = board.map((_, cell) => valueAt(SAMPLE_PUZZLE, board, cell))
-    expect(shown).toEqual(SAMPLE_SOLVED_BOARD)
+    const shown = board.map((_, cell) => valueAt(SMALL_PUZZLE, board, cell))
+    expect(shown).toEqual(SMALL_SOLVED_BOARD)
   })
 })

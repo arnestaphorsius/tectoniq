@@ -54,7 +54,7 @@ test.describe('creating a puzzle', () => {
     await page.goto('/')
 
     await expect(page.getByRole('heading', { name: 'Tectoniq' })).toBeVisible()
-    await expect(page.getByTestId('cell')).toHaveCount(20)
+    await expect(page.getByTestId('cell')).toHaveCount(64)
     await expect(page.getByTestId('open-editor')).toBeVisible()
   })
 
@@ -86,7 +86,7 @@ test.describe('creating a puzzle', () => {
     await dragAcross(page, [0, 1, 2])
 
     await page.getByTestId('open-play').click()
-    await expect(page.getByTestId('cell')).toHaveCount(20)
+    await expect(page.getByTestId('cell')).toHaveCount(64)
     await page.getByTestId('open-editor').click()
 
     await expect(page.getByTestId('cell')).toHaveCount(25)

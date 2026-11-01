@@ -3,11 +3,11 @@ import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import App from './App.vue'
 import { findHint, type HintResult } from '@/domain/hints/hint'
-import { SAMPLE_PUZZLE, SAMPLE_SOLUTION } from '@/domain/puzzle/samplePuzzle'
+import { SMALL_PUZZLE, SMALL_SOLUTION } from '@/domain/puzzle/smallPuzzle'
 
 /**
- * The real `findHint`, wrapped so a test can hand the app a result no sample board
- * gives: with the pair strategies, every legal board of the sample has a hint.
+ * The real `findHint`, wrapped so a test can hand the app a result no small-puzzle board
+ * gives: with the pair strategies, every legal board of the small puzzle has a hint.
  */
 vi.mock('@/domain/hints/hint', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/domain/hints/hint')>()
@@ -22,8 +22,9 @@ function nextHintIs(result: HintResult) {
   vi.mocked(findHint).mockReturnValueOnce(result)
 }
 
+/** The app, on the small puzzle: hints on it can be walked until it is solved. */
 function mountApp() {
-  return mount(App, { attachTo: document.body })
+  return mount(App, { props: { puzzle: SMALL_PUZZLE }, attachTo: document.body })
 }
 
 function cell(wrapper: VueWrapper, index: number) {
@@ -202,7 +203,7 @@ describe('number pad', () => {
         .filter((found) => found.attributes('disabled') !== undefined)
 
     expect(disabled()).toHaveLength(0)
-    // Cell 4 is the sample's given 3.
+    // Cell 4 is the small puzzle's given 3.
     await cell(wrapper, 4).trigger('click')
     expect(disabled()).toHaveLength(0)
   })
@@ -367,7 +368,7 @@ describe('screens', () => {
     expect(wrapper.find('[data-testid="open-editor"]').exists()).toBe(true)
   })
 
-  it('opening the editor replaces the sample grid', async () => {
+  it('opening the editor replaces the small puzzle grid', async () => {
     const wrapper = mountApp()
 
     await openEditor(wrapper)
@@ -376,7 +377,7 @@ describe('screens', () => {
     expect(wrapper.find('[data-testid="puzzle-grid"]').exists()).toBe(false)
   })
 
-  it('returning to play restores the sample and digit entry still works', async () => {
+  it('returning to play restores the small puzzle and digit entry still works', async () => {
     const wrapper = mountApp()
     await openEditor(wrapper)
 
@@ -422,8 +423,8 @@ describe('hint', () => {
   const F_DEAD_2 = { 13: 1, 15: 5 }
   const VIOLATION = { 5: 3 }
   const SOLVED = Object.fromEntries(
-    SAMPLE_SOLUTION.flatMap((digit, index) =>
-      SAMPLE_PUZZLE.givens[index] == null ? [[index, digit]] : [],
+    SMALL_SOLUTION.flatMap((digit, index) =>
+      SMALL_PUZZLE.givens[index] == null ? [[index, digit]] : [],
     ),
   )
 
