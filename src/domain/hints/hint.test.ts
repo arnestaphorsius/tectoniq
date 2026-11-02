@@ -4,6 +4,7 @@ import { DEFAULT_STRATEGIES, findHint, type HintResult } from './hint'
 import {
   F_17,
   F_A,
+  F_CHAIN,
   F_A_DEAD,
   F_A_NONE,
   F_DEAD,
@@ -12,10 +13,12 @@ import {
   F_S3,
   F_START,
   F_STUCK,
+  F_TARGET_PAIR,
   PAIRS_PUZZLE,
   smallWith,
 } from './fixtures'
 import { NAKED_PAIR, TOUCHING_PAIR } from '@/domain/hints/strategies/pairs'
+import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
 import { SMALL_PUZZLE, SMALL_SOLUTION, SMALL_SOLVED_BOARD } from '@/domain/puzzle/smallPuzzle'
 import {
   CROWN,
@@ -24,7 +27,7 @@ import {
   NAKED_SINGLE,
   UNIQUE,
 } from '@/domain/hints/strategies/singles'
-import type { Elimination, Placement, Strategy } from '@/domain/hints/strategies/step'
+import type { Elimination, Strategy } from '@/domain/hints/strategies/step'
 import { withEntry } from '@/domain/input/selection'
 import type { Board, Digit, Puzzle } from '@/domain/puzzle/types'
 import { valueAt } from '@/domain/puzzle/validate'
@@ -82,7 +85,7 @@ function hint(board: Board, strategies?: readonly Strategy[]): HintResult {
   return findHint(SMALL_PUZZLE, board, strategies)
 }
 
-function placementOf(result: HintResult): { placement: Placement; leadUp: readonly Elimination[] } {
+function hintOf(result: HintResult): Extract<HintResult, { kind: 'hint' }> {
   if (result.kind !== 'hint') throw new Error(`expected a hint, got ${result.kind}`)
   return result
 }
@@ -93,19 +96,19 @@ const removalsOf = (leadUp: readonly Elimination[]) => leadUp.map((step) => step
 describe('loop', () => {
   it('strategy order beats cell index', () => {
     // Crown and Naked Single would place 5 at the lower cell 14.
-    expect(placementOf(hint(F_17)).placement).toMatchObject({
+    expect(hintOf(hint(F_17)).placement).toMatchObject({
       cell: 15,
       digit: 1,
       strategy: 'Unique',
     })
     // Naked Single would place the same digit.
-    expect(placementOf(hint(F_S3)).placement).toMatchObject({
+    expect(hintOf(hint(F_S3)).placement).toMatchObject({
       cell: 13,
       digit: 4,
       strategy: 'Crown',
     })
     // Unique, Crown and Naked Single also apply, Unique at the lower cell 0.
-    expect(placementOf(hint(F_FULL_0_1_14)).placement).toMatchObject({
+    expect(hintOf(hint(F_FULL_0_1_14)).placement).toMatchObject({
       cell: 14,
       digit: 5,
       strategy: 'Full Block',
@@ -113,7 +116,7 @@ describe('loop', () => {
   })
 
   it('first hint from the givens', () => {
-    const { placement, leadUp } = placementOf(hint(F_START))
+    const { placement, leadUp } = hintOf(hint(F_START))
 
     expect(placement).toMatchObject({ cell: 17, digit: 1, strategy: 'Full Block' })
     expect(placement.justifying).toEqual([])
@@ -121,7 +124,7 @@ describe('loop', () => {
   })
 
   it('a no-op elimination does not loop forever', () => {
-    const { placement, leadUp } = placementOf(hint(F_START, [noOp, ...DEFAULT_STRATEGIES]))
+    const { placement, leadUp } = hintOf(hint(F_START, [noOp, ...DEFAULT_STRATEGIES]))
 
     expect(placement).toMatchObject({ cell: 17, digit: 1 })
     expect(leadUp).toEqual([])
@@ -144,7 +147,7 @@ describe('lead-up', () => {
     const a = { cell: 0, digits: [4] } as const
     const b = { cell: 6, digits: [4] } as const
 
-    const { placement, leadUp } = placementOf(hint(F_STUCK, [stub(a, b), ...DEFAULT_STRATEGIES]))
+    const { placement, leadUp } = hintOf(hint(F_STUCK, [stub(a, b), ...DEFAULT_STRATEGIES]))
 
     expect(placement).toMatchObject({ cell: 6, digit: 1, strategy: 'Naked Single' })
     expect([...placement.justifying].sort((x, y) => x - y)).toEqual([7, 10, 11])
@@ -155,7 +158,7 @@ describe('lead-up', () => {
     const a = { cell: 2, digits: [1] } as const
     const b = { cell: 6, digits: [4], justifying: [2] } as const
 
-    const { placement, leadUp } = placementOf(hint(F_STUCK, [stub(a, b), ...DEFAULT_STRATEGIES]))
+    const { placement, leadUp } = hintOf(hint(F_STUCK, [stub(a, b), ...DEFAULT_STRATEGIES]))
 
     expect(placement).toMatchObject({ cell: 6, digit: 1, strategy: 'Naked Single' })
     expect(removalsOf(leadUp)).toEqual([[{ cell: 2, digits: [1] }], [{ cell: 6, digits: [4] }]])
@@ -166,14 +169,14 @@ describe('lead-up', () => {
     const b = { cell: 0, digits: [4] } as const
     const c = { cell: 1, digits: [4] } as const
 
-    const { placement, leadUp } = placementOf(hint(F_STUCK, [stub(a, b, c), ...DEFAULT_STRATEGIES]))
+    const { placement, leadUp } = hintOf(hint(F_STUCK, [stub(a, b, c), ...DEFAULT_STRATEGIES]))
 
     expect(placement).toMatchObject({ cell: 5, digit: 4, strategy: 'Hidden Single' })
     expect(removalsOf(leadUp)).toEqual([[b], [c]])
   })
 
   it('board strategies take none', () => {
-    const { placement, leadUp } = placementOf(
+    const { placement, leadUp } = hintOf(
       hint(F_17, [stub({ cell: 15, digits: [5] }), ...DEFAULT_STRATEGIES]),
     )
 
@@ -213,7 +216,7 @@ describe('pair strategies', () => {
     expect(NAKED_PAIR.apply(SMALL_PUZZLE, F_START, candidates)).not.toBeNull()
     expect(TOUCHING_PAIR.apply(SMALL_PUZZLE, F_START, candidates)).not.toBeNull()
 
-    const { placement, leadUp } = placementOf(hint(F_START))
+    const { placement, leadUp } = hintOf(hint(F_START))
 
     expect(placement).toMatchObject({ cell: 17, digit: 1, strategy: 'Full Block' })
     expect(leadUp).toEqual([])
@@ -226,7 +229,7 @@ describe('pair strategies', () => {
   it('Naked Pairs A unlocks a hint where S1–S5 are stuck', () => {
     stuckOn(PAIRS_PUZZLE, F_A)
 
-    const { placement, leadUp } = placementOf(findHint(PAIRS_PUZZLE, F_A))
+    const { placement, leadUp } = hintOf(findHint(PAIRS_PUZZLE, F_A))
 
     expect(placement).toMatchObject({ cell: 6, digit: 1, strategy: 'Naked Single' })
     expect(leadUp.map((step) => step.strategy)).toContain('Naked Pair')
@@ -247,7 +250,7 @@ describe('pair strategies', () => {
     const pair = TOUCHING_PAIR.apply(SMALL_PUZZLE, F_STUCK, candidates)
     expect(pair).toMatchObject({ justifying: [8, 9], removals: [{ cell: 5, digits: [1, 2] }] })
 
-    const { placement, leadUp } = placementOf(hint(F_STUCK))
+    const { placement, leadUp } = hintOf(hint(F_STUCK))
 
     expect(placement).toMatchObject({ cell: 5, digit: 4, strategy: 'Naked Single' })
     expect([...placement.justifying].sort((x, y) => x - y)).toEqual([4, 10])
@@ -266,6 +269,54 @@ describe('pair strategies', () => {
     expect(findHint(PAIRS_PUZZLE, F_A_DEAD, START_STRATEGIES)).toEqual({ kind: 'none' })
 
     expect(findHint(PAIRS_PUZZLE, F_A_DEAD)).toEqual({ kind: 'dead-end', cells: [14] })
+  })
+})
+
+describe('shown candidates', () => {
+  it("a hint shows its pair's candidates, then what they crossed out of the target", () => {
+    const { shown } = hintOf(hint(F_STUCK))
+
+    expect(shown).toEqual([
+      [
+        { cell: 8, digits: [1, 2], struck: [] },
+        { cell: 9, digits: [1, 2], struck: [] },
+        { cell: 5, digits: [], struck: [1, 2] },
+      ],
+      [{ cell: 5, digits: [], struck: [1, 2] }],
+    ])
+  })
+
+  it('a hint from the board alone shows none', () => {
+    expect(hintOf(hint(F_START)).shown).toEqual([[]])
+  })
+
+  it('a chain shows each pair as the steps before it left it', () => {
+    const { placement, leadUp, shown } = hintOf(findHint(SAMPLE_PUZZLE, F_CHAIN))
+
+    expect(placement).toMatchObject({ cell: 45, digit: 3, strategy: 'Naked Single' })
+    expect(leadUp.map((step) => [step.strategy, step.justifying])).toEqual([
+      ['Naked Pair', [29, 30]],
+      ['Touching Pair', [37, 38]],
+    ])
+    // The Touching Pair is only a pair because the Naked Pair took 4 and 5.
+    expect(shown[1]).toEqual([
+      { cell: 37, digits: [1, 2], struck: [4, 5] },
+      { cell: 38, digits: [1, 2], struck: [4, 5] },
+      { cell: 45, digits: [], struck: [1, 2] },
+      { cell: 46, digits: [], struck: [1, 2] },
+    ])
+    expect(shown[2]).toEqual([{ cell: 45, digits: [], struck: [1, 2] }])
+  })
+
+  it("a target in its own pair shows the pair's digits, and the placement shows none", () => {
+    const { placement, leadUp, shown } = hintOf(findHint(SAMPLE_PUZZLE, F_TARGET_PAIR))
+
+    expect(placement).toMatchObject({ cell: 21, digit: 2, strategy: 'Hidden Single' })
+    expect(leadUp.map((step) => step.justifying)).toEqual([[21, 28]])
+    // Only the two digits the pair's explanation names, which the answer is one of.
+    expect(shown[0]).toContainEqual({ cell: 21, digits: [1, 2], struck: [] })
+    // The Hidden Single shows its digit crossed out of the rest of the cage.
+    expect(shown[1]).toEqual([{ cell: 20, digits: [], struck: [2] }])
   })
 })
 

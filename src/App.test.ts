@@ -702,6 +702,19 @@ describe('hint', () => {
         reads: [{ cell: 5 }],
       },
       leadUp: [elimination(1, [0, 1], 6), elimination(2, [8, 9], 5)],
+      shown: [
+        [
+          { cell: 0, digits: [1, 2], struck: [] },
+          { cell: 1, digits: [1, 2], struck: [] },
+          { cell: 6, digits: [], struck: [1] },
+        ],
+        [
+          { cell: 8, digits: [1, 2], struck: [] },
+          { cell: 9, digits: [1, 2], struck: [] },
+          { cell: 5, digits: [], struck: [1] },
+        ],
+        [{ cell: 5, digits: [], struck: [1] }],
+      ],
     })
     const wrapper = mountApp()
 

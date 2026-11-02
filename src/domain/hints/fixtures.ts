@@ -1,3 +1,4 @@
+import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
 import { SMALL_SOLVED_BOARD, SMALL_PUZZLE } from '@/domain/puzzle/smallPuzzle'
 import { emptyBoard, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 
@@ -72,3 +73,40 @@ export const F_A = emptyBoard(PAIRS_PUZZLE)
 export const F_A_NONE = boardWith(PAIRS_PUZZLE, { 6: 1 })
 /** Legal but wrong: the pair at 6 and 10 takes cell 14's last candidates. */
 export const F_A_DEAD = boardWith(PAIRS_PUZZLE, { 7: 1, 11: 3 })
+
+/**
+ * A chain of two eliminations on the sample. The Naked Pair at 29 and 30 takes 4 and
+ * 5 out of 37 and 38, which leaves those two a Touching Pair of 1 and 2, which takes
+ * 1 and 2 out of 45. Its cage only allows 1 to 3, so 45 is 3, and nothing on the
+ * board rules anything out of it.
+ */
+export const F_CHAIN = boardWith(SAMPLE_PUZZLE, {
+  0: 1,
+  7: 5,
+  14: 3,
+  21: 2,
+  22: 1,
+  23: 2,
+  56: 1,
+})
+
+/**
+ * A hint whose target is one of its own pair, on the sample. The Touching Pair at 21
+ * and 28 holds 1 and 2 and takes both out of 20, which leaves 2 nowhere else to go in
+ * the cage of 21: a Hidden Single.
+ */
+export const F_TARGET_PAIR = boardWith(SAMPLE_PUZZLE, {
+  0: 1,
+  7: 5,
+  14: 3,
+  29: 5,
+  30: 4,
+  35: 3,
+  36: 4,
+  42: 4,
+  45: 3,
+  46: 4,
+  47: 3,
+  51: 3,
+  56: 1,
+})
