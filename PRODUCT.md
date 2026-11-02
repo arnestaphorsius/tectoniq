@@ -44,7 +44,7 @@ able to state the reasoning is the claim.
 
 This positioning is confirmed as the intended direction and is **only partly
 implemented**. The staged hint explains its digit in terms of the rules, but only
-for five strategies, and they solve only the small test puzzle outright: on the
+for seven strategies, and they solve only the small test puzzle outright: on the
 sample they stall after a few digits. That is a first step, not the
 claim: nothing user-facing may yet say that Tectoniq teaches the deduction.
 
@@ -71,9 +71,10 @@ Terminology in use, and the only vocabulary for these things: **cage** (a region
 1–5 cells), **given** (a printed clue, never overwritable), **entry** (a digit the
 player wrote), **violation** (a broken rule the app names), **hint** (a staged pointer
 to the next deduction), **strategy** (one named way of deducing a digit), **candidate**
-(a digit the player has marked as possible in a cell). The hint loop's internal list of
-possible digits is not a candidate in this sense and is never shown; in code the
-player's candidates are called notes to keep the two apart.
+(a digit still possible in a cell: one the player has marked, or one a hint shows while
+it reasons from it). The hint loop works out its own candidates from the rules and
+never reads the player's; in code the player's candidates are called notes to keep the
+two apart.
 
 ## Capabilities and Constraints
 
@@ -113,12 +114,22 @@ without it the cages would be independent.
   to look at and asks whether the player can work it out; then it explains, in the
   rules' own words, why that cell's digit is forced, highlights the cells that force
   it, and offers to fill it in. The explanation never names the digit, so it is not
-  shown until the player fills it in. Five strategies are known: Full Block, Unique,
-  Crown, Naked Single, and Hidden Single. When the board breaks a rule, has a cell
-  with no digit left, or defeats every strategy, the hint says so instead.
+  shown until the player fills it in. Seven strategies are known: Full Block, Unique,
+  Crown, Naked Single, Hidden Single, Naked Pair and Touching Pair. The two pairs rule
+  digits out rather than placing one, and a hint that rests on them explains each
+  elimination, a stage at a time, before the digit it leads to. When the board breaks
+  a rule, has a cell with no digit left, or defeats every strategy, the hint says so
+  instead.
+- Showing the candidates a hint reasons from. An elimination shows its pair's two
+  candidates, and the digits it rules out crossed out in the cells that lose them; the
+  placement it leads to keeps those crossed out. A hint read off the board alone shows
+  none, and the placement never shows what is left in the cell it points at, so the
+  digit is still the player's to find. The hint's candidates take the place of the
+  player's in those cells while they are on screen, and give way the moment the player
+  presses a candidate or a clear there.
 
 **Not built, and not to be implied as built:** placing givens, playing a puzzle you
-drew, hints on a drawn puzzle, the harder strategies such as naked pairs, spotting an
+drew, hints on a drawn puzzle, strategies beyond the seven above, spotting an
 entry that is legal but wrong, any persistence, a solver, difficulty rating,
 undo/redo, and taking a cell back out of a cage.
 
