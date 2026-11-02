@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import HintPanel from './components/HintPanel.vue'
-import { lastStage, marksFor, type HintView } from './components/hintView'
+import { handBack, lastStage, marksFor, nextStage, type HintView } from './components/hintView'
 import NumberPad from './components/NumberPad.vue'
 import PuzzleEditor from './components/PuzzleEditor.vue'
 import PuzzleGrid from './components/PuzzleGrid.vue'
@@ -24,7 +24,9 @@ const board = ref<Board>(emptyBoard(puzzle))
 /**
  * The candidates the player has marked, and whether a digit press marks one. Both
  * outlive a trip to the editor, like the board. Changing a candidate leaves a hint
- * on screen alone: hints are worked out from the board, and never read these.
+ * on screen: hints are worked out from the board, and never read these. Only where
+ * the hint is drawing its own candidates does it give the cell back, so the player
+ * sees their press land.
  */
 const notes = ref<Notes>(emptyNotes(puzzle))
 const mode = ref<EntryMode>('normal')
@@ -68,6 +70,7 @@ function onEntry(cell: number, digit: Digit | null) {
 
 function onNotes(cell: number, digits: readonly Digit[]) {
   notes.value = withNotes(notes.value, cell, digits)
+  if (hint.value !== null) hint.value = handBack(hint.value, cell)
 }
 
 /**
@@ -161,7 +164,7 @@ onBeforeUnmount(() => {
 function advanceHint() {
   const current = hint.value
   if (current?.result.kind === 'hint' && current.stage < lastStage(current.result)) {
-    hint.value = { ...current, stage: current.stage + 1 }
+    hint.value = nextStage(current)
     return
   }
   hint.value = { result: findHint(puzzle, board.value), stage: 1 }

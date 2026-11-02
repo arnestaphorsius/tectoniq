@@ -5,6 +5,7 @@ import { SMALL_PUZZLE } from '@/domain/puzzle/smallPuzzle'
 import { emptyNotes, withNotes, type EntryMode, type Notes } from '@/domain/input/notes'
 import { emptyBoard, type Board, type Puzzle } from '@/domain/puzzle/types'
 import { findViolations, type Violation } from '@/domain/puzzle/validate'
+import type { HintMarks } from './hintView'
 import PuzzleGrid from './PuzzleGrid.vue'
 
 enableAutoUnmount(afterEach)
@@ -36,6 +37,7 @@ function mountGrid(
     violations?: readonly Violation[]
     notes?: Notes
     mode?: EntryMode
+    marks?: HintMarks
   } = {},
 ) {
   const puzzle = options.puzzle ?? SMALL_PUZZLE
@@ -46,6 +48,7 @@ function mountGrid(
       violations: options.violations ?? [],
       notes: options.notes ?? emptyNotes(puzzle),
       mode: options.mode ?? 'normal',
+      marks: options.marks ?? {},
     },
     attachTo: document.body,
   })
@@ -565,5 +568,75 @@ describe('candidates', () => {
 
     expect(normal.emitted('update:mode')).toEqual([['candidate']])
     expect(candidate.emitted('update:mode')).toEqual([['normal']])
+  })
+})
+
+describe("a hint's candidates", () => {
+  const notes = withNotes(withNotes(emptyNotes(SMALL_PUZZLE), 0, [1, 3, 5]), 1, [2, 4])
+  /** The hint crosses 1 out of cell 0 and shows 2 there, and draws nothing in cell 1. */
+  const marks: HintMarks = { candidates: [{ cell: 0, digits: [2], struck: [1] }] }
+
+  /** What a hint draws in a cell, as digits still possible and digits crossed out. */
+  function hinted(wrapper: VueWrapper, index: number) {
+    const drawn = cell(wrapper, index).findAll('[data-testid="hint-candidates"] [data-note]')
+    const of = (struck: boolean) =>
+      drawn.filter((note) => note.classes('struck') === struck).map((note) => Number(note.text()))
+    return { digits: of(false), struck: of(true) }
+  }
+
+  it("take the place of the player's own, and leave other cells' alone", () => {
+    const wrapper = mountGrid({ notes, marks })
+
+    expect(cell(wrapper, 0).find('[data-testid="candidates"]').exists()).toBe(false)
+    expect(hinted(wrapper, 0)).toEqual({ digits: [2], struck: [1] })
+    expect(cell(wrapper, 1).find('[data-testid="hint-candidates"]').exists()).toBe(false)
+    expect(cell(wrapper, 1).findAll('[data-testid="candidates"] [data-note]')).toHaveLength(2)
+  })
+
+  it('sit in the places the same candidates take, drawn for the eye only', () => {
+    const wrapper = mountGrid({ marks })
+    const drawn = cell(wrapper, 0).findAll('[data-testid="hint-candidates"] [data-note]')
+
+    expect(drawn.map((note) => note.attributes('data-note'))).toEqual(['1', '2'])
+    for (const note of drawn) expect(note.attributes('aria-hidden')).toBe('true')
+  })
+
+  it('are named to a screen reader as the hint, with what it crosses out', () => {
+    const label = (shown: NonNullable<HintMarks['candidates']>) =>
+      cell(mountGrid({ marks: { candidates: shown } }), 0)
+        .get('.sr-only')
+        .text()
+
+    expect(label([{ cell: 0, digits: [1, 2], struck: [] }])).toBe('hint: candidates 1, 2')
+    expect(label([{ cell: 0, digits: [], struck: [1, 2] }])).toBe('hint: crossed out 1, 2')
+    expect(label([{ cell: 0, digits: [2, 4], struck: [1] }])).toBe(
+      'hint: candidates 2, 4; crossed out 1',
+    )
+  })
+
+  it('are never drawn over a digit', () => {
+    const board = emptyBoard(SMALL_PUZZLE).map((_, index) => (index === 0 ? 2 : null))
+    const wrapper = mountGrid({ board, marks })
+
+    expect(cell(wrapper, 0).find('[data-testid="hint-candidates"]').exists()).toBe(false)
+    expect(cell(wrapper, 0).get('.digit').text()).toBe('2')
+  })
+
+  // They cover the player's as a digit does, so a press must not act on what is hidden.
+  it("a candidate pressed under them is marked among the player's, not toggled off", async () => {
+    const wrapper = mountGrid({ notes, marks, mode: 'candidate' })
+
+    await pressOn(wrapper, 0, '3')
+
+    expect(wrapper.emitted('notes')).toEqual([[0, [1, 3, 5]]])
+  })
+
+  it("a clear under them sends the player's candidates back unchanged", async () => {
+    const wrapper = mountGrid({ notes, marks })
+
+    await pressOn(wrapper, 0, 'Backspace')
+
+    expect(wrapper.emitted('notes')).toEqual([[0, [1, 3, 5]]])
+    expect(wrapper.emitted('entry')).toBeUndefined()
   })
 })

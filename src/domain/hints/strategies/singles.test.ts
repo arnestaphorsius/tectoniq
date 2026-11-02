@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { candidatesFor, type Candidates } from '@/domain/hints/candidates'
+import { EXPLANATIONS } from '@/domain/hints/copy'
 import { F_17, F_FULL_0, F_S3, F_S4, F_START, F_STUCK } from '@/domain/hints/fixtures'
 import { SMALL_PUZZLE } from '@/domain/puzzle/smallPuzzle'
 import { CROWN, FULL_BLOCK, HIDDEN_SINGLE, NAKED_SINGLE, UNIQUE } from './singles'
@@ -93,6 +94,16 @@ describe('Naked Single', () => {
 
     expect(placement(step)).toMatchObject({ cell: 6, digit: 1 })
   })
+
+  it('says what rules the other options out', () => {
+    // Cell 18's cage holds 1 to 5, and the board alone rules out all but 2.
+    const fromBoard = placement(run(NAKED_SINGLE, F_S4))
+    // Cell 6 lost its 4 to an earlier step, and the board rules out the rest but 1.
+    const afterSteps = placement(run(NAKED_SINGLE, F_STUCK, narrowed(F_STUCK, 4, 6)))
+
+    expect(fromBoard.explanation).toBe(EXPLANATIONS.nakedSingle(5, 'board'))
+    expect(afterSteps.explanation).toBe(EXPLANATIONS.nakedSingle(5, 'both'))
+  })
 })
 
 describe('Hidden Single', () => {
@@ -102,6 +113,17 @@ describe('Hidden Single', () => {
     expect(sorted(step.justifying)).toEqual([0, 1])
 
     expect(run(HIDDEN_SINGLE, F_STUCK)).toBeNull()
+  })
+
+  it('says what rules the digit out of the rest of the cage', () => {
+    // On the board's own candidates, the 1 at 17 rules 1 out of 14 and 18.
+    const fromBoard = placement(run(HIDDEN_SINGLE, F_17))
+    // Nothing nearby rules 4 out of cells 0 and 1: an earlier step took it.
+    const afterSteps = placement(run(HIDDEN_SINGLE, F_STUCK, narrowed(F_STUCK, 4, 0, 1)))
+
+    expect(fromBoard).toMatchObject({ cell: 15, digit: 1 })
+    expect(fromBoard.explanation).toBe(EXPLANATIONS.hiddenSingle(5, 'board'))
+    expect(afterSteps.explanation).toBe(EXPLANATIONS.hiddenSingle(4, 'steps'))
   })
 })
 

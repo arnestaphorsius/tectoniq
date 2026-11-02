@@ -17,6 +17,7 @@ import {
   PAIRS_PUZZLE,
   smallWith,
 } from './fixtures'
+import { EXPLANATIONS } from '@/domain/hints/copy'
 import { NAKED_PAIR, TOUCHING_PAIR } from '@/domain/hints/strategies/pairs'
 import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
 import { SMALL_PUZZLE, SMALL_SOLUTION, SMALL_SOLVED_BOARD } from '@/domain/puzzle/smallPuzzle'
@@ -306,6 +307,13 @@ describe('shown candidates', () => {
       { cell: 46, digits: [], struck: [1, 2] },
     ])
     expect(shown[2]).toEqual([{ cell: 45, digits: [], struck: [1, 2] }])
+  })
+
+  it('a placement ruled by the steps alone says so, with nothing highlighted', () => {
+    const { placement } = hintOf(findHint(SAMPLE_PUZZLE, F_CHAIN))
+
+    expect(placement.justifying).toEqual([])
+    expect(placement.explanation).toBe(EXPLANATIONS.nakedSingle(3, 'steps'))
   })
 
   it("a target in its own pair shows the pair's digits, and the placement shows none", () => {
