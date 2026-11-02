@@ -1,4 +1,4 @@
-import { SAMPLE_SOLVED_BOARD, SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { SMALL_SOLVED_BOARD, SMALL_PUZZLE } from '@/domain/puzzle/smallPuzzle'
 import { emptyBoard, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 
 /**
@@ -14,30 +14,30 @@ function boardWith(puzzle: Puzzle, entries: Readonly<Record<number, Digit>>): Bo
   return board
 }
 
-/** The sample's empty board with `entries` written in, as `cell → digit`. */
-export function sampleWith(entries: Readonly<Record<number, Digit>>): Board {
-  return boardWith(SAMPLE_PUZZLE, entries)
+/** The small puzzle's empty board with `entries` written in, as `cell → digit`. */
+export function smallWith(entries: Readonly<Record<number, Digit>>): Board {
+  return boardWith(SMALL_PUZZLE, entries)
 }
 
-/** The solved sample with `cells` cleared again. */
+/** The solved small puzzle with `cells` cleared again. */
 export function solvedWithout(...cells: number[]): Board {
-  const board: (Digit | null)[] = [...SAMPLE_SOLVED_BOARD]
+  const board: (Digit | null)[] = [...SMALL_SOLVED_BOARD]
   for (const cell of cells) board[cell] = null
   return board
 }
 
-export const F_START = sampleWith({})
-export const F_17 = sampleWith({ 17: 1 })
-export const F_S4 = sampleWith({ 14: 5, 15: 1, 17: 1 })
-export const F_S3 = sampleWith({ 14: 5, 15: 1, 16: 3, 17: 1, 18: 2 })
-export const F_STUCK = sampleWith({ 13: 4, 14: 5, 15: 1, 16: 3, 17: 1, 18: 2 })
+export const F_START = smallWith({})
+export const F_17 = smallWith({ 17: 1 })
+export const F_S4 = smallWith({ 14: 5, 15: 1, 17: 1 })
+export const F_S3 = smallWith({ 14: 5, 15: 1, 16: 3, 17: 1, 18: 2 })
+export const F_STUCK = smallWith({ 13: 4, 14: 5, 15: 1, 16: 3, 17: 1, 18: 2 })
 export const F_FULL_0 = solvedWithout(0)
 export const F_FULL_0_1_14 = solvedWithout(0, 1, 14)
-export const F_DEAD = sampleWith({ 13: 1 })
-export const F_DEAD_2 = sampleWith({ 13: 1, 15: 5 })
+export const F_DEAD = smallWith({ 13: 1 })
+export const F_DEAD_2 = smallWith({ 13: 1, 15: 5 })
 
 /**
- * A 4×4 puzzle where a Naked Pairs A elimination unlocks a hint, which the sample has
+ * A 4×4 puzzle where a Naked Pairs A elimination unlocks a hint, which the small puzzle has
  * none of. That takes a five-cell cage shaped just so, here cage 2: cells 10 and 14
  * can only be 2 or 4, and only once they claim both is cell 6 down to one digit.
  * Found by search, not built from a solution, and it has several solutions.

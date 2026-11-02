@@ -12,15 +12,15 @@ import {
   isCageContiguous,
   touching,
 } from './grid'
-import { SAMPLE_PUZZLE } from './samplePuzzle'
+import { SMALL_PUZZLE } from './smallPuzzle'
 import type { Puzzle } from './types'
 
 /**
  * Geometry fixture — a 4×3 grid of one-cell cages.
  *
- * Deliberately not `SAMPLE_PUZZLE`: neighbourhood and coordinate maths are
+ * Deliberately not `SMALL_PUZZLE`: neighbourhood and coordinate maths are
  * properties of the grid itself, not of any particular puzzle. Pinning them to
- * the sample means every test here breaks the moment the sample is swapped.
+ * a puzzle means every test here breaks the moment that puzzle changes.
  *
  *    0  1  2  3
  *    4  5  6  7
@@ -80,14 +80,14 @@ describe('adjacent', () => {
   })
 })
 
-describe('the sample puzzle', () => {
+describe('the small puzzle', () => {
   it('partitions twenty cells into five cages', () => {
-    expect(cellCount(SAMPLE_PUZZLE)).toBe(20)
-    expect(cageIds(SAMPLE_PUZZLE)).toEqual([0, 1, 2, 3, 4])
+    expect(cellCount(SMALL_PUZZLE)).toBe(20)
+    expect(cageIds(SMALL_PUZZLE)).toEqual([0, 1, 2, 3, 4])
   })
 
   it('has cages of the sizes its diagram documents', () => {
-    const sizes = cageIds(SAMPLE_PUZZLE).map((id) => [id, cageSize(SAMPLE_PUZZLE, id)])
+    const sizes = cageIds(SMALL_PUZZLE).map((id) => [id, cageSize(SMALL_PUZZLE, id)])
     // Not uniform: a cage of four and a cage of one, which is what gives the
     // `value-exceeds-cage` rule something real to catch.
     expect(sizes).toEqual([
@@ -100,13 +100,13 @@ describe('the sample puzzle', () => {
   })
 
   it('lists cage members by index', () => {
-    expect(cellsInCage(SAMPLE_PUZZLE, 0)).toEqual([0, 1, 4, 5])
-    expect(cellsInCage(SAMPLE_PUZZLE, 4)).toEqual([17])
+    expect(cellsInCage(SMALL_PUZZLE, 0)).toEqual([0, 1, 4, 5])
+    expect(cellsInCage(SMALL_PUZZLE, 4)).toEqual([17])
   })
 
   it('has only contiguous cages', () => {
-    for (const cageId of cageIds(SAMPLE_PUZZLE)) {
-      expect(isCageContiguous(SAMPLE_PUZZLE, cageId)).toBe(true)
+    for (const cageId of cageIds(SMALL_PUZZLE)) {
+      expect(isCageContiguous(SMALL_PUZZLE, cageId)).toBe(true)
     }
   })
 })

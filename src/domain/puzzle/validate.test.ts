@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { SAMPLE_PUZZLE, SAMPLE_SOLVED_BOARD } from './samplePuzzle'
+import { SMALL_PUZZLE, SMALL_SOLVED_BOARD } from './smallPuzzle'
 import { emptyBoard, type Board, type Digit, type Puzzle } from './types'
 import { findViolations, isComplete, isSolved, validatePuzzle, valueAt } from './validate'
 
@@ -29,27 +30,30 @@ function boardOf(...values: readonly (Digit | null)[]): Board {
   return values
 }
 
-describe('the sample fixture', () => {
+describe.each([
+  { name: 'the small puzzle', puzzle: SMALL_PUZZLE, solved: SMALL_SOLVED_BOARD },
+  { name: 'the sample', puzzle: SAMPLE_PUZZLE, solved: SAMPLE_SOLVED_BOARD },
+])('$name', ({ puzzle, solved }) => {
   it('is a structurally valid puzzle', () => {
-    expect(validatePuzzle(SAMPLE_PUZZLE)).toEqual([])
+    expect(validatePuzzle(puzzle)).toEqual([])
   })
 
   it('is actually solved by its stated solution', () => {
-    // Guards the hand-built fixture: if the grid or the solution is wrong,
-    // every other test using it is meaningless.
-    expect(findViolations(SAMPLE_PUZZLE, SAMPLE_SOLVED_BOARD)).toEqual([])
-    expect(isSolved(SAMPLE_PUZZLE, SAMPLE_SOLVED_BOARD)).toBe(true)
+    // Guards the hand-entered grid: if the grid or the solution is wrong,
+    // every test using it is meaningless.
+    expect(findViolations(puzzle, solved)).toEqual([])
+    expect(isSolved(puzzle, solved)).toBe(true)
   })
 
   it('has givens consistent with its solution', () => {
-    SAMPLE_PUZZLE.givens.forEach((given, cell) => {
-      if (given !== null) expect(given).toBe(SAMPLE_SOLVED_BOARD[cell])
+    puzzle.givens.forEach((given, cell) => {
+      if (given !== null) expect(given).toBe(solved[cell])
     })
   })
 
   it('breaks no rules while still empty', () => {
-    expect(findViolations(SAMPLE_PUZZLE, emptyBoard(SAMPLE_PUZZLE))).toEqual([])
-    expect(isComplete(SAMPLE_PUZZLE, emptyBoard(SAMPLE_PUZZLE))).toBe(false)
+    expect(findViolations(puzzle, emptyBoard(puzzle))).toEqual([])
+    expect(isComplete(puzzle, emptyBoard(puzzle))).toBe(false)
   })
 })
 
@@ -100,20 +104,20 @@ describe('validatePuzzle', () => {
 
 describe('valueAt', () => {
   it('prefers the given over a board entry', () => {
-    // Cell 4 carries a given; the guard fails loudly if the sample changes.
-    expect(SAMPLE_PUZZLE.givens[4]).toBe(3)
-    const allFours = Array.from({ length: SAMPLE_PUZZLE.givens.length }, (): Digit => 4)
-    expect(valueAt(SAMPLE_PUZZLE, allFours, 4)).toBe(3)
+    // Cell 4 carries a given; the guard fails loudly if the small puzzle changes.
+    expect(SMALL_PUZZLE.givens[4]).toBe(3)
+    const allFours = Array.from({ length: SMALL_PUZZLE.givens.length }, (): Digit => 4)
+    expect(valueAt(SMALL_PUZZLE, allFours, 4)).toBe(3)
   })
 
   it('falls back to the board entry where there is no given', () => {
-    const board = emptyBoard(SAMPLE_PUZZLE).slice()
+    const board = emptyBoard(SMALL_PUZZLE).slice()
     board[1] = 2
-    expect(valueAt(SAMPLE_PUZZLE, board, 1)).toBe(2)
+    expect(valueAt(SMALL_PUZZLE, board, 1)).toBe(2)
   })
 
   it('is null for an untouched cell', () => {
-    expect(valueAt(SAMPLE_PUZZLE, emptyBoard(SAMPLE_PUZZLE), 1)).toBeNull()
+    expect(valueAt(SMALL_PUZZLE, emptyBoard(SMALL_PUZZLE), 1)).toBeNull()
   })
 })
 

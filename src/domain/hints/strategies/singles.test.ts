@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { candidatesFor, type Candidates } from '@/domain/hints/candidates'
 import { F_17, F_FULL_0, F_S3, F_S4, F_START, F_STUCK } from '@/domain/hints/fixtures'
-import { SAMPLE_PUZZLE } from '@/domain/puzzle/samplePuzzle'
+import { SMALL_PUZZLE } from '@/domain/puzzle/smallPuzzle'
 import { CROWN, FULL_BLOCK, HIDDEN_SINGLE, NAKED_SINGLE, UNIQUE } from './singles'
 import type { Placement, Step, Strategy } from './step'
 import type { Board, Digit } from '@/domain/puzzle/types'
 
-/** Runs `strategy` on the sample, against `candidates` or the board's own. */
+/** Runs `strategy` on the small puzzle, against `candidates` or the board's own. */
 function run(strategy: Strategy, board: Board, candidates?: Candidates): Step | null {
-  return strategy.apply(SAMPLE_PUZZLE, board, candidates ?? candidatesFor(SAMPLE_PUZZLE, board))
+  return strategy.apply(SMALL_PUZZLE, board, candidates ?? candidatesFor(SMALL_PUZZLE, board))
 }
 
 /** The board's candidates with `digit` struck from each of `cells`. */
 function narrowed(board: Board, digit: Digit, ...cells: number[]): Candidates {
-  return candidatesFor(SAMPLE_PUZZLE, board).map((set, cell) => {
+  return candidatesFor(SMALL_PUZZLE, board).map((set, cell) => {
     if (set === null || !cells.includes(cell)) return set
     const next = new Set(set)
     next.delete(digit)

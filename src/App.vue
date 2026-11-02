@@ -12,16 +12,23 @@ import { withEntry } from '@/domain/input/selection'
 import { emptyBoard, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 import { findViolations, isSolved } from '@/domain/puzzle/validate'
 
-const board = ref<Board>(emptyBoard(SAMPLE_PUZZLE))
+/**
+ * The puzzle the play screen plays. Only tests pass one: the app's own sample is
+ * too hard for the strategies to walk all the way through, and tests need that.
+ * It is read once, at mount: the board and notes are sized for it then.
+ */
+const { puzzle = SAMPLE_PUZZLE } = defineProps<{ puzzle?: Puzzle }>()
+
+const board = ref<Board>(emptyBoard(puzzle))
 
 /**
  * The candidates the player has marked, and whether a digit press marks one. Both
  * outlive a trip to the editor, like the board. Changing a candidate leaves a hint
  * on screen alone: hints are worked out from the board, and never read these.
  */
-const notes = ref<Notes>(emptyNotes(SAMPLE_PUZZLE))
+const notes = ref<Notes>(emptyNotes(puzzle))
 const mode = ref<EntryMode>('normal')
-const violations = computed(() => findViolations(SAMPLE_PUZZLE, board.value))
+const violations = computed(() => findViolations(puzzle, board.value))
 
 /**
  * The selected cell is held here rather than in the grid, because the number pad
@@ -43,7 +50,7 @@ const drawn = shallowRef<Puzzle | undefined>()
  * it to go stale. Asking again always starts from the first stage.
  */
 const hint = shallowRef<HintView | null>(null)
-const solved = computed(() => isSolved(SAMPLE_PUZZLE, board.value))
+const solved = computed(() => isSolved(puzzle, board.value))
 
 watch([board, screen], () => (hint.value = null))
 watch(screen, () => (selected.value = null))
@@ -157,7 +164,7 @@ function advanceHint() {
     hint.value = { ...current, stage: current.stage + 1 }
     return
   }
-  hint.value = { result: findHint(SAMPLE_PUZZLE, board.value), stage: 1 }
+  hint.value = { result: findHint(puzzle, board.value), stage: 1 }
 }
 
 function fillHint() {
@@ -196,13 +203,13 @@ function fillHint() {
       </nav>
     </div>
 
-    <div v-if="screen === 'play'" class="work" :style="{ '--cols': SAMPLE_PUZZLE.width }">
+    <div v-if="screen === 'play'" class="work" :style="{ '--cols': puzzle.width }">
       <div class="area-grid">
         <PuzzleGrid
           ref="grid"
           v-model:selected="selected"
           v-model:mode="mode"
-          :puzzle="SAMPLE_PUZZLE"
+          :puzzle="puzzle"
           :board="board"
           :violations="violations"
           :marks="marksFor(hint)"
@@ -231,7 +238,7 @@ function fillHint() {
       </div>
     </div>
 
-    <PuzzleEditor v-else :initial-puzzle="drawn" @change="(puzzle) => (drawn = puzzle)" />
+    <PuzzleEditor v-else :initial-puzzle="drawn" @change="(next) => (drawn = next)" />
   </main>
 </template>
 
