@@ -7,9 +7,9 @@ import { valueAt } from '@/domain/puzzle/validate'
  * that already shows a digit (or sits in no cage), and a set — possibly empty — for
  * an open one.
  *
- * This is internal bookkeeping for the hint loop. The player never sees it, and it is
- * not the candidates the player marks: those are `Notes` (`@/domain/input/notes`),
- * which this never reads.
+ * This is the hint loop's own bookkeeping, not the candidates the player marks:
+ * those are `Notes` (`@/domain/input/notes`), which this never reads. A hint shows
+ * the player only the part of it that a step reasons from (`shownCandidates`).
  */
 export type Candidates = readonly (ReadonlySet<Digit> | null)[]
 

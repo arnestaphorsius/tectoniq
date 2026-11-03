@@ -12,7 +12,7 @@ interface PairRule {
   related(puzzle: Puzzle, low: number, high: number): boolean
   /** The cells that cannot hold either of the pair's digits. */
   losing(puzzle: Puzzle, pair: Pair): readonly number[]
-  explain(puzzle: Puzzle, pair: Pair, digits: readonly [Digit, Digit], losing: number): string
+  explain(puzzle: Puzzle, pair: Pair, digits: readonly [Digit, Digit]): string
 }
 
 /**
@@ -39,7 +39,7 @@ function pairStrategy(rule: PairRule): Strategy {
             strategy: rule.name,
             removals,
             justifying: pair,
-            explanation: rule.explain(puzzle, pair, digits, removals.length),
+            explanation: rule.explain(puzzle, pair, digits),
           }
         }
       }
@@ -86,8 +86,8 @@ export const NAKED_PAIR = pairStrategy({
   name: 'Naked Pair',
   related: (puzzle, low, high) => puzzle.cages[low] === puzzle.cages[high],
   losing: restOfCage,
-  explain: (puzzle, pair, digits, losing) =>
-    EXPLANATIONS.nakedPair(restOfCage(puzzle, pair).length + 2, digits, losing),
+  explain: (puzzle, pair, digits) =>
+    EXPLANATIONS.nakedPair(restOfCage(puzzle, pair).length + 2, digits),
 })
 
 /**
@@ -102,5 +102,5 @@ export const TOUCHING_PAIR = pairStrategy({
     const nearHigh = touching(puzzle, high)
     return touching(puzzle, low).filter((cell) => nearHigh.includes(cell))
   },
-  explain: (_puzzle, _pair, digits, losing) => EXPLANATIONS.touchingPair(digits, losing),
+  explain: (_puzzle, _pair, digits) => EXPLANATIONS.touchingPair(digits),
 })

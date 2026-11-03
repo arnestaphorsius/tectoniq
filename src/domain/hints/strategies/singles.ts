@@ -1,4 +1,4 @@
-import { EXPLANATIONS } from '@/domain/hints/copy'
+import { EXPLANATIONS, type RuledOutBy } from '@/domain/hints/copy'
 import { cageIds, cageSize, cellCount, cellsInCage, touching } from '@/domain/puzzle/grid'
 import { isDigit, type Board, type Digit, type Puzzle } from '@/domain/puzzle/types'
 import { valueAt } from '@/domain/puzzle/validate'
@@ -34,6 +34,12 @@ function touchingPlaced(
 }
 
 const ascending = (cells: Iterable<number>) => [...new Set(cells)].sort((a, b) => a - b)
+
+/** Which of the board and the earlier steps rule a placement's other options out. */
+function ruledOutBy(board: boolean, steps: boolean): RuledOutBy {
+  if (!steps) return 'board'
+  return board ? 'both' : 'steps'
+}
 
 /** The tie-break within one strategy: the lowest target cell wins, then the lowest digit. */
 function lowest(placements: readonly Placement[]): Placement | null {
@@ -165,7 +171,8 @@ export const NAKED_SINGLE: Strategy = {
         cell,
         (value) => value <= size && value !== digit,
       )
-      const ruledOut = new Set([...inCage, ...around].map((other) => valueAt(puzzle, board, other)))
+      const justifying = ascending([...inCage, ...around])
+      const ruledOut = new Set(justifying.map((other) => valueAt(puzzle, board, other)))
       // Anything the board alone does not rule out was removed by an earlier step.
       const byEarlierSteps = digitsUpTo(size).some(
         (other) => other !== digit && !ruledOut.has(other),
@@ -176,8 +183,11 @@ export const NAKED_SINGLE: Strategy = {
         strategy: 'Naked Single',
         cell,
         digit,
-        justifying: ascending([...inCage, ...around]),
-        explanation: EXPLANATIONS.nakedSingle(size, byEarlierSteps),
+        justifying,
+        explanation: EXPLANATIONS.nakedSingle(
+          size,
+          ruledOutBy(justifying.length > 0, byEarlierSteps),
+        ),
         reads: [{ cell }],
       })
     })
@@ -202,16 +212,19 @@ export const HIDDEN_SINGLE: Strategy = {
         if (fits.length !== 1 || target === undefined) continue
 
         const others = open.filter((cell) => cell !== target)
+        const nearby = others.map((cell) => touchingWith(puzzle, board, cell, digit))
+        // A cell with no copy of the digit nearby lost it to an earlier step.
+        const by = ruledOutBy(
+          nearby.some((copies) => copies.length > 0),
+          nearby.some((copies) => copies.length === 0),
+        )
         found.push({
           kind: 'placement',
           strategy: 'Hidden Single',
           cell: target,
           digit,
-          justifying: ascending([
-            ...others,
-            ...others.flatMap((cell) => touchingWith(puzzle, board, cell, digit)),
-          ]),
-          explanation: EXPLANATIONS.hiddenSingle(cells.length),
+          justifying: ascending([...others, ...nearby.flat()]),
+          explanation: EXPLANATIONS.hiddenSingle(cells.length, by),
           reads: others.map((cell) => ({ cell, digits: [digit] })),
         })
       }

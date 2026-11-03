@@ -46,6 +46,31 @@ async function pressOn(wrapper: VueWrapper, index: number, key: string) {
   await cell(wrapper, index).trigger('keydown', { key })
 }
 
+/** The player's candidates drawn in a cell, as the digits they show. */
+function drawn(wrapper: VueWrapper, index: number): string[] {
+  return cell(wrapper, index)
+    .findAll('[data-testid="candidates"] [data-note]')
+    .map((note) => note.attributes('data-note') ?? '')
+}
+
+/** Marks `digits` in `index` with Shift held, from Normal mode, then lets go. */
+async function mark(wrapper: VueWrapper, index: number, digits: readonly number[]) {
+  await cell(wrapper, index).trigger('click')
+  await cell(wrapper, index).trigger('keydown', { key: 'Shift', shiftKey: true })
+  for (const digit of digits) {
+    await cell(wrapper, index).trigger('keydown', {
+      key: '!',
+      code: `Digit${digit}`,
+      shiftKey: true,
+    })
+  }
+  await cell(wrapper, index).trigger('keyup', { key: 'Shift' })
+}
+
+/** Whether a cell shows a digit, which a hint must not before it is filled in. */
+const showsDigit = (wrapper: VueWrapper, index: number) =>
+  cell(wrapper, index).find('.digit').exists()
+
 describe('selection', () => {
   it('a click outside the grid clears the selection', async () => {
     const wrapper = mountApp()
@@ -404,7 +429,7 @@ describe('screens', () => {
 describe('hint', () => {
   const advance = (wrapper: VueWrapper) => wrapper.get('[data-testid="hint-advance"]')
   const status = (wrapper: VueWrapper) => wrapper.get('[data-testid="hint-status"]')
-  const marked = (wrapper: VueWrapper, mark: 'target' | 'reason' | 'losing' | 'dead') =>
+  const marked = (wrapper: VueWrapper, mark: 'target' | 'reason' | 'dead') =>
     wrapper
       .findAll(`.hint-${mark}`)
       .map((found) => Number(found.attributes('data-cell')))
@@ -429,9 +454,24 @@ describe('hint', () => {
   )
 
   /** Asks for a hint and steps it forward to `stage`. */
-  async function hintAt(wrapper: VueWrapper, stage: 1 | 2) {
+  async function hintAt(wrapper: VueWrapper, stage: 1 | 2 | 3) {
     for (let step = 0; step < stage; step += 1) await advance(wrapper).trigger('click')
   }
+
+  /** What the hint draws in a cell, as digits still possible and digits crossed out. */
+  function hinted(wrapper: VueWrapper, index: number) {
+    const notes = cell(wrapper, index).findAll('[data-testid="hint-candidates"] [data-note]')
+    const of = (struck: boolean) =>
+      notes.filter((note) => note.classes('struck') === struck).map((note) => Number(note.text()))
+    return { digits: of(false), struck: of(true) }
+  }
+
+  /** The cells the hint draws candidates in, ascending. */
+  const hintedCells = (wrapper: VueWrapper) =>
+    wrapper
+      .findAll('[data-testid="hint-candidates"]')
+      .map((found) => Number(found.element.closest('[data-cell]')?.getAttribute('data-cell')))
+      .sort((a, b) => a - b)
 
   function expectNoHint(wrapper: VueWrapper) {
     expect(marked(wrapper, 'target')).toEqual([])
@@ -614,7 +654,7 @@ describe('hint', () => {
     expect(status(wrapper).find('[data-testid="hint-message"]').exists()).toBe(true)
   })
 
-  it('an elimination gets its own stage with pair and losing cells marked', async () => {
+  it('an elimination gets its own stage with its pair marked', async () => {
     const wrapper = mountApp()
     await enter(wrapper, F_STUCK)
 
@@ -623,7 +663,7 @@ describe('hint', () => {
     expect(marked(wrapper, 'target')).toEqual([5])
     expect(wrapper.find('[data-testid="hint-strategy"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="hint-explanation"]').exists()).toBe(false)
-    expect(cell(wrapper, 5).text()).toBe('')
+    expect(showsDigit(wrapper, 5)).toBe(false)
 
     await advance(wrapper).trigger('click')
 
@@ -632,12 +672,11 @@ describe('hint', () => {
     expect(strategy.attributes('data-step')).toBe('elimination')
     expect(wrapper.get('[data-testid="hint-explanation"]').text()).not.toBe('')
     expect(marked(wrapper, 'reason')).toEqual([8, 9])
-    expect(marked(wrapper, 'losing')).toEqual([5])
     expect(marked(wrapper, 'target')).toEqual([5])
     // Two different marks, never one cell carrying both.
     expect(cell(wrapper, 5).classes()).not.toContain('hint-reason')
     expect(advance(wrapper).text()).toBe('Next')
-    expect(cell(wrapper, 5).text()).toBe('')
+    expect(showsDigit(wrapper, 5)).toBe(false)
   })
 
   it('a hint of several steps counts them, and one of a single step does not', async () => {
@@ -671,10 +710,9 @@ describe('hint', () => {
     expect(strategy.attributes('data-step')).toBe('placement')
     expect(wrapper.get('[data-testid="hint-explanation"]').text()).not.toBe('')
     expect(marked(wrapper, 'reason')).toEqual([4, 10])
-    expect(marked(wrapper, 'losing')).toEqual([])
     expect(marked(wrapper, 'target')).toEqual([5])
     expect(wrapper.find('[data-testid="hint-fill"]').exists()).toBe(true)
-    expect(cell(wrapper, 5).text()).toBe('')
+    expect(showsDigit(wrapper, 5)).toBe(false)
 
     await wrapper.get('[data-testid="hint-fill"]').trigger('click')
 
@@ -702,12 +740,26 @@ describe('hint', () => {
         reads: [{ cell: 5 }],
       },
       leadUp: [elimination(1, [0, 1], 6), elimination(2, [8, 9], 5)],
+      shown: [
+        [
+          { cell: 0, digits: [1, 2], struck: [] },
+          { cell: 1, digits: [1, 2], struck: [] },
+          { cell: 6, digits: [], struck: [1] },
+        ],
+        [
+          { cell: 8, digits: [1, 2], struck: [] },
+          { cell: 9, digits: [1, 2], struck: [] },
+          { cell: 5, digits: [], struck: [1] },
+        ],
+        [{ cell: 5, digits: [], struck: [1] }],
+      ],
     })
     const wrapper = mountApp()
 
     await hintAt(wrapper, 1)
     expect(marked(wrapper, 'target')).toEqual([5])
     expect(advance(wrapper).text()).toBe('Why?')
+    expect(hintedCells(wrapper)).toEqual([])
 
     for (const [n, reasons, losing] of [
       [1, [0, 1], [6]],
@@ -717,16 +769,126 @@ describe('hint', () => {
       expect(wrapper.get('[data-testid="hint-strategy"]').text()).toBe(`Pair ${n}`)
       expect(wrapper.get('[data-testid="hint-explanation"]').text()).toBe(`Elimination ${n}.`)
       expect(marked(wrapper, 'reason')).toEqual(reasons)
-      expect(marked(wrapper, 'losing')).toEqual(losing)
+      expect(hintedCells(wrapper)).toEqual([...losing, ...reasons].sort((a, b) => a - b))
       expect(wrapper.find('[data-testid="hint-fill"]').exists()).toBe(false)
     }
 
     await advance(wrapper).trigger('click')
     expect(wrapper.get('[data-testid="hint-strategy"]').text()).toBe('Placement')
     expect(marked(wrapper, 'reason')).toEqual([4, 10])
-    expect(marked(wrapper, 'losing')).toEqual([])
+    expect(hintedCells(wrapper)).toEqual([5])
     expect(wrapper.find('[data-testid="hint-fill"]').exists()).toBe(true)
     expect(findHint).toHaveBeenCalledTimes(1)
+  })
+
+  it('stage 1 draws no candidates', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+
+    await hintAt(wrapper, 1)
+
+    expect(hintedCells(wrapper)).toEqual([])
+  })
+
+  it('a hint read off the board draws no candidates', async () => {
+    const wrapper = mountApp()
+
+    // The small puzzle's first hint is a Full Block.
+    await hintAt(wrapper, 2)
+
+    expect(wrapper.get('[data-testid="hint-strategy"]').text()).toBe('Full Block')
+    expect(hintedCells(wrapper)).toEqual([])
+  })
+
+  it("an elimination shows its pair's candidates and crosses out what it removes", async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+
+    await hintAt(wrapper, 2)
+
+    expect(hintedCells(wrapper)).toEqual([5, 8, 9])
+    expect(hinted(wrapper, 8)).toEqual({ digits: [1, 2], struck: [] })
+    expect(hinted(wrapper, 9)).toEqual({ digits: [1, 2], struck: [] })
+    expect(hinted(wrapper, 5)).toEqual({ digits: [], struck: [1, 2] })
+  })
+
+  it('the placement keeps crossed out what the steps before it took, and never its digit', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+
+    await hintAt(wrapper, 3)
+
+    expect(wrapper.get('[data-testid="hint-strategy"]').text()).toBe('Naked Single')
+    expect(hintedCells(wrapper)).toEqual([5])
+    // 4 is the digit, so it is not drawn.
+    expect(hinted(wrapper, 5)).toEqual({ digits: [], struck: [1, 2] })
+    expect(showsDigit(wrapper, 5)).toBe(false)
+  })
+
+  it("they take the place of the player's, which come back when the hint goes", async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+    await mark(wrapper, 5, [1, 2, 4])
+    await mark(wrapper, 0, [1, 2])
+
+    await hintAt(wrapper, 2)
+    expect(drawn(wrapper, 5)).toEqual([])
+    expect(hinted(wrapper, 5)).toEqual({ digits: [], struck: [1, 2] })
+    // Cell 0 is no part of the hint, so the player's candidates there stay.
+    expect(drawn(wrapper, 0)).toEqual(['1', '2'])
+
+    await wrapper.get('[data-testid="hint-close"]').trigger('click')
+    expect(hintedCells(wrapper)).toEqual([])
+    expect(drawn(wrapper, 5)).toEqual(['1', '2', '4'])
+  })
+
+  it('marking a candidate where the hint draws hands the cell back until the next stage', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+    await hintAt(wrapper, 2)
+
+    await mark(wrapper, 5, [4])
+    await mark(wrapper, 8, [1])
+
+    expect(drawn(wrapper, 5)).toEqual(['4'])
+    expect(drawn(wrapper, 8)).toEqual(['1'])
+    expect(hintedCells(wrapper)).toEqual([9])
+    expect(marked(wrapper, 'target')).toEqual([5])
+    expect(marked(wrapper, 'reason')).toEqual([8, 9])
+
+    // A mark where the hint draws nothing changes nothing about what it draws.
+    await mark(wrapper, 0, [1])
+    expect(hintedCells(wrapper)).toEqual([9])
+
+    await advance(wrapper).trigger('click')
+    expect(hinted(wrapper, 5)).toEqual({ digits: [], struck: [1, 2] })
+    expect(drawn(wrapper, 5)).toEqual([])
+  })
+
+  it('a candidate pressed where the hint draws is marked, never toggled off unseen', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+    await mark(wrapper, 5, [1, 2, 4])
+    await hintAt(wrapper, 2)
+
+    // The player's 4 is under the hint's candidates, so pressing it keeps it.
+    await mark(wrapper, 5, [4])
+
+    expect(drawn(wrapper, 5)).toEqual(['1', '2', '4'])
+  })
+
+  it('a clear where the hint draws uncovers the candidates, and a second takes them out', async () => {
+    const wrapper = mountApp()
+    await enter(wrapper, F_STUCK)
+    await mark(wrapper, 5, [1, 2, 4])
+    await hintAt(wrapper, 2)
+
+    await pressOn(wrapper, 5, 'Backspace')
+    expect(hinted(wrapper, 5)).toEqual({ digits: [], struck: [] })
+    expect(drawn(wrapper, 5)).toEqual(['1', '2', '4'])
+
+    await pressOn(wrapper, 5, 'Backspace')
+    expect(drawn(wrapper, 5)).toEqual([])
   })
 })
 
@@ -734,27 +896,6 @@ describe('candidates', () => {
   const key = (wrapper: VueWrapper, digit: number) => wrapper.get(`[data-digit="${digit}"]`)
   const modeButton = (wrapper: VueWrapper, mode: 'normal' | 'candidate') =>
     wrapper.get(`[data-mode="${mode}"]`)
-
-  /** The candidates drawn in a cell, as the digits they show. */
-  function drawn(wrapper: VueWrapper, index: number): string[] {
-    return cell(wrapper, index)
-      .findAll('[data-note]')
-      .map((note) => note.attributes('data-note') ?? '')
-  }
-
-  /** Marks `digits` in `index` with Shift held, from Normal mode, then lets go. */
-  async function mark(wrapper: VueWrapper, index: number, digits: readonly number[]) {
-    await cell(wrapper, index).trigger('click')
-    await cell(wrapper, index).trigger('keydown', { key: 'Shift', shiftKey: true })
-    for (const digit of digits) {
-      await cell(wrapper, index).trigger('keydown', {
-        key: '!',
-        code: `Digit${digit}`,
-        shiftKey: true,
-      })
-    }
-    await cell(wrapper, index).trigger('keyup', { key: 'Shift' })
-  }
 
   it('the pad marks candidates in Candidate mode, and writes digits again in Normal', async () => {
     const wrapper = mountApp()

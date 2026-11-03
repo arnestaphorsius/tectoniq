@@ -44,7 +44,7 @@ test.describe('staged hint', () => {
 })
 
 test.describe('elimination lead-up', () => {
-  test("walks the sample's Naked Pairs B hint and fills in 3", async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/')
     // The sample's first three hints, which need no elimination.
     for (const [cell, digit] of [
@@ -55,13 +55,22 @@ test.describe('elimination lead-up', () => {
       await page.locator(`[data-cell="${cell}"]`).click()
       await page.keyboard.press(String(digit))
     }
+  })
+
+  test("walks the sample's Naked Pairs B hint and fills in 3", async ({ page }) => {
     const button = page.getByTestId('hint-advance')
     const marked = (mark: string) => page.locator(`.hint-${mark}`)
     const target = page.locator('[data-cell="14"]')
+    /** The hint's candidates in a cell: those still possible, or those crossed out. */
+    const hinted = (index: number, struck: boolean) =>
+      page
+        .locator(`[data-cell="${index}"] [data-testid="hint-candidates"] [data-note]`)
+        .and(page.locator(struck ? '.struck' : ':not(.struck)'))
 
     await button.click()
     await expect(marked('target')).toHaveAttribute('data-cell', '14')
     await expect(page.getByTestId('hint-explanation')).toHaveCount(0)
+    await expect(page.getByTestId('hint-candidates')).toHaveCount(0)
     await expect(target).toHaveText('')
 
     await button.click()
@@ -69,23 +78,44 @@ test.describe('elimination lead-up', () => {
     await expect(marked('reason')).toHaveCount(2)
     await expect(page.locator('[data-cell="22"]')).toHaveClass(/hint-reason/)
     await expect(page.locator('[data-cell="23"]')).toHaveClass(/hint-reason/)
-    // Cell 30 touches both as well, and loses the same two digits.
-    await expect(marked('losing')).toHaveCount(2)
-    await expect(page.locator('[data-cell="30"]')).toHaveClass(/hint-losing/)
-    await expect(target).toHaveClass(/hint-losing/)
     await expect(target).toHaveClass(/hint-target/)
-    await expect(target).toHaveText('')
+    // The pair shows the two digits it holds, and they are crossed out of the target
+    // and of cell 30, which touches both as well.
+    await expect(hinted(22, false)).toHaveText(['1', '2'])
+    await expect(hinted(23, false)).toHaveText(['1', '2'])
+    await expect(hinted(14, true)).toHaveText(['1', '2'])
+    await expect(hinted(30, true)).toHaveText(['1', '2'])
+    await expect(page.getByTestId('hint-candidates')).toHaveCount(4)
+    await expect(target.locator('.digit')).toHaveCount(0)
 
     await button.click()
     await expect(page.getByTestId('hint-strategy')).toHaveText('Naked Single')
     await expect(page.locator('[data-cell="7"]')).toHaveClass(/hint-reason/)
     await expect(page.locator('[data-cell="13"]')).toHaveClass(/hint-reason/)
     await expect(page.locator('[data-cell="15"]')).toHaveClass(/hint-reason/)
-    await expect(marked('losing')).toHaveCount(0)
-    await expect(target).toHaveText('')
+    // Only what the pair crossed out stays, so the 3 is still the player's to find.
+    await expect(page.getByTestId('hint-candidates')).toHaveCount(1)
+    await expect(hinted(14, true)).toHaveText(['1', '2'])
+    await expect(hinted(14, false)).toHaveCount(0)
+    await expect(target.locator('.digit')).toHaveCount(0)
 
     await page.getByTestId('hint-fill').click()
     await expect(target).toHaveText('3')
+    await expect(page.getByTestId('hint-candidates')).toHaveCount(0)
     await expect(page.getByTestId('violation-marker')).toHaveCount(0)
+  })
+
+  test("a candidate marked where the hint draws shows in the player's hand", async ({ page }) => {
+    const target = page.locator('[data-cell="14"]')
+    await page.getByTestId('hint-advance').click()
+    await page.getByTestId('hint-advance').click()
+    await expect(target.getByTestId('hint-candidates')).toHaveCount(1)
+
+    await target.click()
+    await page.keyboard.press('Shift+Digit3')
+
+    await expect(target.getByTestId('hint-candidates')).toHaveCount(0)
+    await expect(target.locator('[data-testid="candidates"] [data-note]')).toHaveText(['3'])
+    await expect(page.getByTestId('hint-strategy')).toHaveText('Touching Pair')
   })
 })

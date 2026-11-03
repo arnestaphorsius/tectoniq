@@ -1,4 +1,5 @@
 import { candidatesFor } from './candidates'
+import { shownCandidates, type ShownCandidates } from './shown'
 import { NAKED_PAIR, TOUCHING_PAIR } from '@/domain/hints/strategies/pairs'
 import {
   CROWN,
@@ -35,7 +36,8 @@ export const DEFAULT_STRATEGIES: readonly Strategy[] = [
  * - `dead-end`: open cells with no digit left that fits. The board cannot be
  *   completed as it stands, so some entry is wrong.
  * - `hint`: the next digit, plus the eliminations its reasoning depends on, in the
- *   order they were found.
+ *   order they were found. `shown` holds the candidates each of those steps shows the
+ *   player: one list per elimination, then the placement's (see `shownCandidates`).
  * - `none`: no strategy applies. This is said plainly rather than guessed at.
  */
 export type HintResult =
@@ -45,6 +47,7 @@ export type HintResult =
       readonly kind: 'hint'
       readonly placement: Placement
       readonly leadUp: readonly Elimination[]
+      readonly shown: readonly (readonly ShownCandidates[])[]
     }
   | { readonly kind: 'none' }
 
@@ -63,7 +66,8 @@ export function findHint(
 ): HintResult {
   if (findViolations(puzzle, board).length > 0) return { kind: 'violations' }
 
-  const candidates = candidatesFor(puzzle, board).map((set) => (set ? new Set(set) : null))
+  const initial = candidatesFor(puzzle, board)
+  const candidates = initial.map((set) => (set ? new Set(set) : null))
   const applied: Elimination[] = []
 
   search: for (;;) {
@@ -75,7 +79,13 @@ export function findHint(
       if (step === null) continue
 
       if (step.kind === 'placement') {
-        return { kind: 'hint', placement: step, leadUp: leadUpFor(step.reads, applied) }
+        const leadUp = leadUpFor(step.reads, applied)
+        return {
+          kind: 'hint',
+          placement: step,
+          leadUp,
+          shown: shownCandidates(initial, leadUp, step),
+        }
       }
 
       const removals = removeFrom(candidates, step.removals)

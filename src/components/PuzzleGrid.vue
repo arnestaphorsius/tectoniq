@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { hintCandidatesLabel } from '@/domain/hints/copy'
+import type { ShownCandidates } from '@/domain/hints/shown'
 import { cageEdges } from '@/domain/puzzle/grid'
 import type { HintMarks } from './hintView'
 import {
@@ -27,7 +29,9 @@ const props = withDefaults(
 
 /**
  * Digits and candidates leave as events rather than being written here, because
- * the board and the notes are domain state owned by the caller.
+ * the board and the notes are domain state owned by the caller. A notes event for a
+ * cell the hint draws candidates in is the caller's cue to show the player's there
+ * again, which is why a clear in such a cell sends its notes unchanged (`press`).
  */
 const emit = defineEmits<{
   entry: [cell: number, digit: Digit | null]
@@ -63,15 +67,35 @@ const offendingCells = computed(() => {
   return cells
 })
 
+/** The candidates the hint draws in `cell`, if it draws any there. */
+function hintCandidatesIn(cell: number): ShownCandidates | undefined {
+  return props.marks.candidates?.find((shown) => shown.cell === cell)
+}
+
+/** A hint's candidates in one cell, ascending, each saying whether it is crossed out. */
+function hintCandidatesFrom({ digits, struck }: ShownCandidates) {
+  const all = [
+    ...digits.map((digit) => ({ digit, struck: false })),
+    ...struck.map((digit) => ({ digit, struck: true })),
+  ]
+  return {
+    label: hintCandidatesLabel(digits, struck),
+    digits: all.sort((a, b) => a.digit - b.digit),
+  }
+}
+
 const cells = computed(() =>
   props.puzzle.cages.map((_, cell) => {
     const isGiven = props.puzzle.givens[cell] != null
     const value = valueAt(props.puzzle, props.board, cell)
+    // The hint's candidates take the place of the player's while it shows them.
+    const shown = value === null ? hintCandidatesIn(cell) : undefined
     return {
       cell,
       value,
       // A digit covers the cell's candidates: they are kept, but not drawn under it.
-      notes: value === null ? (props.notes[cell] ?? []) : [],
+      notes: value === null && shown === undefined ? (props.notes[cell] ?? []) : [],
+      hintCandidates: shown === undefined ? null : hintCandidatesFrom(shown),
       isGiven,
       // Givens are marked too. The marker says "this digit is part of a broken
       // rule", not "fix this cell" — seeing both ends of a conflict is what tells
@@ -81,7 +105,6 @@ const cells = computed(() =>
       hint: {
         'hint-target': props.marks.target === cell,
         'hint-reason': props.marks.reasons?.includes(cell) === true,
-        'hint-losing': props.marks.losing?.includes(cell) === true,
         'hint-dead': props.marks.dead?.includes(cell) === true,
       },
       edges: cageEdges(props.puzzle, cell),
@@ -182,6 +205,11 @@ function keyFor(event: KeyboardEvent): Digit | null | undefined {
  * digit out too, which shows the cell's candidates again; from a cell with no
  * digit, it takes the candidates out.
  *
+ * A hint's candidates cover the player's in the same way, and a press treats them
+ * alike: a candidate is marked among the player's, never toggled off one they could
+ * not see, and a clear only uncovers them. It sends them unchanged, which is the
+ * caller's cue to show them again in place of the hint's.
+ *
  * A given holds the selection but never takes a digit, so the write is refused here
  * rather than at the board — the ticket's "cannot alter a given".
  */
@@ -189,17 +217,21 @@ function press(key: Digit | null) {
   const cell = selected.value
   if (cell === null || !isWritable(props.puzzle, cell)) return
   const value = valueAt(props.puzzle, props.board, cell)
+  const underHint = value === null && hintCandidatesIn(cell) !== undefined
+  const notes = props.notes[cell] ?? []
 
   if (key === null) {
     if (value !== null) emit('entry', cell, null)
-    else if ((props.notes[cell] ?? []).length > 0) emit('notes', cell, [])
+    else if (underHint) emit('notes', cell, notes)
+    else if (notes.length > 0) emit('notes', cell, [])
   } else if (mode.value === 'candidate') {
-    if (value === null) {
-      emit('notes', cell, toggledNote(props.notes, cell, key))
-    } else {
-      emit('entry', cell, null)
-      emit('notes', cell, markedNote(props.notes, cell, key))
-    }
+    if (value !== null) emit('entry', cell, null)
+    const covered = value !== null || underHint
+    emit(
+      'notes',
+      cell,
+      covered ? markedNote(props.notes, cell, key) : toggledNote(props.notes, cell, key),
+    )
   } else {
     emit('entry', cell, toggledEntry(props.puzzle, props.board, cell, key))
   }
@@ -280,8 +312,25 @@ watch(selected, (cell) => {
           Each candidate has a fixed place, like the five on a die, so the eye always
           looks in the same spot for the same digit. The places are drawn for the
           eye only; a screen reader is told the candidates in one phrase instead.
+          A hint's candidates take the same places, in the player's stead.
         -->
-        <span v-if="cell.notes.length > 0" class="notes die" data-testid="candidates">
+        <span
+          v-if="cell.hintCandidates"
+          class="notes die hint-candidates"
+          data-testid="hint-candidates"
+        >
+          <span class="sr-only">{{ cell.hintCandidates.label }}</span>
+          <span
+            v-for="{ digit, struck } in cell.hintCandidates.digits"
+            :key="digit"
+            class="note"
+            :class="{ struck }"
+            :data-note="digit"
+            aria-hidden="true"
+            >{{ digit }}</span
+          >
+        </span>
+        <span v-else-if="cell.notes.length > 0" class="notes die" data-testid="candidates">
           <span class="sr-only">candidates {{ cell.notes.join(', ') }}</span>
           <span
             v-for="note in cell.notes"
@@ -380,10 +429,8 @@ watch(selected, (cell) => {
  * gets an inner ring as well, so it still stands apart from the reasons in
  * greyscale. A dead cell is washed with the colour that means "wrong".
  *
- * A cell losing digits to an elimination is crossed out with a single diagonal
- * stroke instead: a pattern, not a fill, so it reads apart from the reasons in
- * greyscale too. It sits on `background-image` while the fills sit on
- * `background-color`, so a target that is also losing digits shows both.
+ * A cell losing digits to an elimination has no mark of its own: the digits it
+ * loses are crossed out in it (`.hint-candidates` below), which says which ones too.
  */
 .cell.hint-reason {
   background-color: color-mix(in srgb, var(--hint) 16%, var(--paper));
@@ -394,26 +441,17 @@ watch(selected, (cell) => {
   box-shadow: inset 0 0 0 2px var(--hint);
 }
 
-.cell.hint-losing {
-  background-image: linear-gradient(
-    to top right,
-    transparent calc(50% - 1.5px),
-    color-mix(in srgb, var(--ink) 55%, transparent) calc(50% - 1.5px),
-    color-mix(in srgb, var(--ink) 55%, transparent) calc(50% + 1.5px),
-    transparent calc(50% + 1.5px)
-  );
-}
-
 .cell.hint-dead {
   background-color: color-mix(in srgb, var(--bad) 22%, var(--paper));
 }
 
 /*
  * Candidates sit in the places of the five on a die, from the shared `.die` rule in
- * `style.css` that the number pad uses too. They are the player's hand, so they are
- * Entry Blue, at a size tied to the cell like the digit. They have nothing in
- * common with the violation marker's corner: a cell with candidates holds no digit,
- * so no rule can be broken there.
+ * `style.css` that the number pad uses too. The player's are their hand, so they are
+ * Entry Blue, at a size tied to the cell like the digit; a hint's take the same
+ * places and size in Ink (`.hint-candidates` below). They have nothing in common
+ * with the violation marker's corner: a cell with candidates holds no digit, so no
+ * rule can be broken there.
  */
 .notes {
   position: absolute;
@@ -424,6 +462,36 @@ watch(selected, (cell) => {
   line-height: 1;
   color: var(--entry);
   font-weight: 400;
+}
+
+/*
+ * A hint's candidates are Ink, the voice of the hint's own sentence, because the
+ * player did not write them (The Two Hands Rule). They only ever appear in a cell
+ * the hint is reasoning about, and never beside the player's in one cell.
+ *
+ * A digit the hint rules out is struck through with one stroke, bottom-left to
+ * top-right, the way a pencil crosses out a candidate. The digit is set back to 70%
+ * so the ones still possible read first; that is 5.1:1 on the target's fill, the
+ * darkest a hint draws on. The stroke stays full Ink, so it carries the meaning
+ * alone in greyscale. The padding squares the digit's box up, so the stroke runs
+ * corner to corner at the same slant for every digit.
+ */
+.hint-candidates {
+  color: var(--ink);
+}
+
+.hint-candidates .struck {
+  --stroke: max(1px, 0.09em);
+
+  padding-inline: 0.2em;
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+  background-image: linear-gradient(
+    to top left,
+    transparent calc(50% - var(--stroke) / 2),
+    var(--ink) calc(50% - var(--stroke) / 2),
+    var(--ink) calc(50% + var(--stroke) / 2),
+    transparent calc(50% + var(--stroke) / 2)
+  );
 }
 
 .sr-only {

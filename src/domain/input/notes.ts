@@ -6,9 +6,10 @@ import type { Digit, Puzzle } from '@/domain/puzzle/types'
  *
  * These are the player's own pencil marks, and only the player changes them. They
  * are not the hint loop's `Candidates` (`@/domain/hints/candidates`), which are
- * worked out from the rules and never shown; a player's marks can be wrong, and the
- * hint loop never reads them. In code they are notes, so the two cannot be confused;
- * on screen they are candidates, the word the player knows them by.
+ * worked out from the rules, and which a hint draws in a cell only while it reasons
+ * from them; a player's marks can be wrong, and the hint loop never reads them. In
+ * code they are notes, so the two cannot be confused; on screen both are candidates,
+ * the word the player knows them by.
  */
 export type Notes = readonly (readonly Digit[])[]
 

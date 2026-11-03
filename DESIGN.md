@@ -151,7 +151,11 @@ the three can carry, and a decision that says so.
 Ink means the puzzle printed it; Entry Blue means the player wrote it. No third party
 gets a colour, and neither of those two colours may be borrowed for anything that is
 not a digit — with the single established exception of the selection outline, which is
-Entry Blue because it belongs to the player's hand.
+Entry Blue because it belongs to the player's hand. The hint is the one third party that
+draws digits — the candidates it reasons from — and it gets no colour of its own: they
+are Ink, the voice of the hint panel's sentence, so the line colour draws is still the
+one between the player's hand and everything else. Their size and place keep them from
+reading as givens (see Hint candidates).
 
 **The Red Means Broken Rule.** Violation Red appears only where something is actually
 wrong — a broken rule of Tectonic, or an input the app refused. It is never a brand
@@ -361,8 +365,8 @@ cages are drawn by promoting four independent per-cell edge classes
 per-cell decisions rather than being drawn as an outline. The one non-rectangular shape
 in the whole system is the violation marker: a 0.7rem right triangle in a cell's
 top-right corner, built from a CSS border trick, with its hypotenuse one of only two
-diagonal lines in the app. The other is the hint's stroke through a cell losing digits
-to an elimination (see Hint marks).
+kinds of diagonal line in the app. The other is the stroke through a candidate a hint
+crosses out (see Hint candidates).
 
 The zero radius is recorded as the established state and is not sealed shut; if a later
 pass introduces curvature, it must do so as a deliberate system-wide decision, never as
@@ -383,9 +387,9 @@ decision serves.
 - **Player entry:** Entry Blue, weight 400, `tabular-nums`.
 - **Given:** Ink, weight 600. Selectable but never writable.
 - **Selected:** `outline: 3px solid var(--entry)` with `outline-offset: -3px`, so the ring sits _inside_ the cell and never disturbs the grid's geometry. Selection and keyboard focus are the same thing — the selected cell carries `tabindex="0"` and holds real DOM focus.
-- **Candidates:** digits the player has marked as possible in an empty cell. Each digit has a fixed place on a 3×3 grid inside the cell, like the five on a die — 1 top-left, 2 top-right, 3 centre, 4 bottom-left, 5 bottom-right — so the eye always looks in the same spot for the same digit. They are Entry Blue, because the player wrote them (The Two Hands Rule), at weight 400 and a size derived from `--cell` (a 4.6th of it, never under 0.5rem). The places are drawn for the eye only and are `aria-hidden`; a screen reader is told "candidates 1, 3, 5" in one phrase. A cell holding a digit shows no candidates, and a given never takes any.
+- **Candidates:** digits the player has marked as possible in an empty cell. Each digit has a fixed place on a 3×3 grid inside the cell, like the five on a die — 1 top-left, 2 top-right, 3 centre, 4 bottom-left, 5 bottom-right — so the eye always looks in the same spot for the same digit. They are Entry Blue, because the player wrote them (The Two Hands Rule), at weight 400 and a size derived from `--cell` (a 4.6th of it, never under 0.5rem). The places are drawn for the eye only and are `aria-hidden`; a screen reader is told "candidates 1, 3, 5" in one phrase. A cell holding a digit shows no candidates, and a given never takes any. A hint's candidates take the same places (see Hint candidates).
 - **Only the player changes candidates.** Placing a digit hides its cell's candidates rather than clearing them, and taking the digit out — Erase, Backspace, or pressing the digit again — shows them again, so trying a digit costs the player nothing. Marking a candidate on a cell with a digit replaces the digit, whatever the number: the digit comes out, the kept candidates show again, and the one pressed is marked among them — marked, never toggled off, so the press always ends with it showing. That makes a wrong digit quick to take back without leaving Candidate mode. A clear on a cell with no digit takes its candidates out. Nothing else is touched — not even a candidate the new digit rules out next door. The marks are a record of the player's thinking, and tidying them would be the app doing the deduction for them (Product Principle 2).
-- **Known limit, recorded:** at the 1.75rem cell floor (a 12-wide grid on a phone) candidates are barely legible. Scaling them up would break the cell's proportions, so this is accepted rather than solved.
+- **Known limit, recorded:** at the 1.75rem cell floor (a 12-wide grid on a phone) candidates are barely legible, a hint's crossed-out ones included. Scaling them up would break the cell's proportions, so this is accepted rather than solved.
 
 ### Hint marks
 
@@ -395,9 +399,25 @@ corner triangle), and a cell can carry the selection and a mark at once.
 
 - **Target** — the cell the hint is about: Hint Amber at 34% into Paper, plus a 2px inset Hint Amber ring, so it stands apart from the reasons in greyscale too. It stays marked through every stage.
 - **Reason** — a cell that makes the case for the step on show: Hint Amber at 16% into Paper, no ring.
-- **Losing** — a cell an elimination rules digits out of: one 3px diagonal stroke, bottom-left to top-right, in Ink at 55%. A pattern rather than a fill, so it reads apart from the reasons in greyscale, and it sits on the background image while the fills sit on the background colour, so a target that is also losing shows both.
+- **Losing** — a cell an elimination rules digits out of. It has no mark of its own: the digits it loses are crossed out in it (see Hint candidates), which says which digits as well as which cell. A stroke across the whole cell would run through the places of 2, 3 and 4, so it could not share a cell with candidates.
 - **Dead** — an open cell with no digit left that fits: Violation Red at 22% into Paper. Red, because a dead end is something actually wrong (The Red Means Broken Rule).
 - **Nothing is marked on its own.** Every mark arrives with the hint panel's sentence and goes the moment the hint is closed, filled in, or the board changes.
+
+### Hint candidates
+
+While a stage of a hint reasons from candidates, the grid draws them in the cells it is
+about, so the case the sentence makes can be checked on the grid. A step shows what its
+reasoning reads, and nothing else.
+
+- **An elimination** shows its pair's candidates — "each can only be 1 or 2" — and, in each cell that loses digits, shows those digits crossed out.
+- **A placement after eliminations** keeps crossed out what they took from the cells it reads: from its target for a Naked Single, and the digit from the rest of its cage for a Hidden Single. That is what lets "the steps before this one" be seen rather than remembered.
+- **A digit an earlier step crossed out stays crossed out** wherever a later step shows its cell. In a chain, a pair whose other digits went to the step before shows them crossed out beside the two it holds, which is the reason it is a pair.
+- **None at stage 1**, and none for a hint with no steps before its placement (Full Block, Unique and Crown always, and the singles when the board alone forces them): the highlighted digits already make that case.
+- **A placement never shows what is left in its target**, so the digit is still the player's to find until "Fill in", as it is in the sentence. An elimination can show the target as one of its pair, but then only with the two digits its sentence names; the pair's evidence is both cells showing them.
+- **Ink, at the candidates' size and places, weight 400** (The Two Hands Rule). Never Entry Blue, because the player did not write them, and never Hint Amber, which is never text.
+- **Crossed out:** one stroke from bottom-left to top-right through the digit, in full Ink, `max(1px, 0.09em)` thick, the way a pencil crosses out a candidate. The digit's box is squared up with 0.2em of side padding so the stroke has the same slant on every digit. The digit itself is set back to 70% Ink, so the candidates still possible read first; that is 5.1:1 on the target's fill, the darkest a hint draws on, and the stroke carries the meaning alone in greyscale.
+- **In place of the player's, never beside them.** A cell the hint draws in shows only the hint's candidates; the player's are kept, and come back once no stage draws there or the hint goes. The hint's cover the player's the way a digit does, and a press treats them alike: a candidate pressed there is marked among the player's, never toggled off one they could not see, and a clear only uncovers them. Either hands the cell back to the player until the next stage, so the press is seen to land.
+- **Semantics:** like the player's, the digits are `aria-hidden`, and a screen reader is told the cell's in one phrase: "hint: candidates 1, 2; crossed out 3".
 
 ### Violation Marker (signature component)
 
